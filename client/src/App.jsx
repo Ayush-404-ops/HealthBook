@@ -1,59 +1,23 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
-import { AuthProvider, useAuth } from './context/AuthContext';
-import Navbar from './components/Navbar';
-import ProtectedRoute from './components/ProtectedRoute';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import Login from './pages/Login.jsx';
+import Register from './pages/Register.jsx';
+import Unauthorized from './pages/Unauthorized.jsx';
+import PatientDashboard from './pages/PatientDashboard.jsx';
+import DoctorDashboard from './pages/DoctorDashboard.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
+import NearbyHospitals from './pages/NearbyHospitals.jsx';
+import ProtectedRoute from './components/ProtectedRoute.jsx';
+import Navbar from './components/Navbar.jsx';
 
-import Landing from './pages/Landing';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import PatientDashboard from './pages/PatientDashboard';
-import DoctorDashboard from './pages/DoctorDashboard';
-import AdminDashboard from './pages/AdminDashboard';
-import NotFound from './pages/NotFound';
-
-// Public route that redirects to dashboard if already authenticated
-const PublicOnlyRoute = ({ children }) => {
-  const { isAuthenticated, user, loading } = useAuth();
-  if (loading) return null;
-  if (isAuthenticated && user) {
-    const dest =
-      user.role === 'admin'
-        ? '/admin'
-        : user.role === 'doctor'
-        ? '/doctor'
-        : '/patient';
-    return <Navigate to={dest} replace />;
-  }
-  return children;
-};
-
-function AppRoutes() {
+function App() {
   return (
     <>
       <Navbar />
       <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={<Landing />} />
-        <Route
-          path="/login"
-          element={
-            <PublicOnlyRoute>
-              <Login />
-            </PublicOnlyRoute>
-          }
-        />
-        <Route
-          path="/register"
-          element={
-            <PublicOnlyRoute>
-              <Register />
-            </PublicOnlyRoute>
-          }
-        />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/unauthorized" element={<Unauthorized />} />
 
-        {/* Protected Role-Based Portals */}
         <Route
           path="/patient"
           element={
@@ -78,34 +42,18 @@ function AppRoutes() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/nearby-hospitals"
+          element={
+            <ProtectedRoute allowedRoles={['patient', 'doctor', 'admin']}>
+              <NearbyHospitals />
+            </ProtectedRoute>
+          }
+        />
 
-        {/* 404 Fallback */}
-        <Route path="*" element={<NotFound />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </>
-  );
-}
-
-function App() {
-  return (
-    <AuthProvider>
-      <Router>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#0f1629',
-              color: '#e8edf5',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '12px',
-              fontFamily: 'Inter, sans-serif',
-            },
-          }}
-        />
-        <AppRoutes />
-      </Router>
-    </AuthProvider>
   );
 }
 

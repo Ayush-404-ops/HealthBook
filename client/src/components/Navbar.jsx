@@ -1,83 +1,66 @@
-import React from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
-import { FiHeart, FiLogOut, FiUser } from 'react-icons/fi';
-import toast from 'react-hot-toast';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext.jsx';
 
-const Navbar = () => {
-  const { user, logout, isAuthenticated } = useAuth();
+export default function Navbar() {
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Don't show navbar on auth pages
+  const hideOn = ['/login', '/register', '/unauthorized'];
+  if (hideOn.includes(location.pathname)) return null;
+
   const handleLogout = async () => {
-    try {
-      await logout();
-      toast.success('Logged out successfully');
-      navigate('/login');
-    } catch {
-      toast.error('Failed to log out');
-    }
+    await logout();
+    navigate('/login');
   };
 
   const getDashboardPath = () => {
-    if (!user) return '/';
-    if (user.role === 'admin') return '/admin';
-    if (user.role === 'doctor') return '/doctor';
+    if (user?.role === 'doctor') return '/doctor';
+    if (user?.role === 'admin') return '/admin';
     return '/patient';
   };
 
   return (
-    <header className="navbar">
-      <div className="container navbar-inner">
-        <Link to={isAuthenticated ? getDashboardPath() : '/'} className="navbar-logo">
-          <div className="navbar-logo-icon">
-            <FiHeart color="#080d1a" size={20} />
-          </div>
-          <span>Health<span className="text-gradient">Book</span></span>
-        </Link>
+    <nav className="bg-white border-b px-6 py-3 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      {/* Logo */}
+      <button
+        onClick={() => navigate(getDashboardPath())}
+        className="text-xl font-bold text-blue-600 hover:text-blue-700 transition"
+      >
+        HealthBook
+      </button>
 
-        <nav className="navbar-links">
-          {!isAuthenticated ? (
-            <>
-              <Link
-                to="/"
-                className={`navbar-link ${location.pathname === '/' ? 'active' : ''}`}
-              >
-                Home
-              </Link>
-              <Link
-                to="/login"
-                className={`navbar-link ${location.pathname === '/login' ? 'active' : ''}`}
-              >
-                Sign In
-              </Link>
-              <Link to="/register" className="btn btn-primary btn-sm">
-                Get Started
-              </Link>
-            </>
-          ) : (
-            <div className="navbar-user">
-              <span className={`badge badge-${user.role === 'admin' ? 'danger' : user.role === 'doctor' ? 'info' : 'primary'}`}>
-                {user.role?.toUpperCase()}
-              </span>
-              <div className="navbar-avatar" title={user.name}>
-                {user.name ? user.name.charAt(0).toUpperCase() : <FiUser />}
-              </div>
-              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{user.name}</span>
-              <button
-                onClick={handleLogout}
-                className="btn btn-ghost btn-sm"
-                title="Sign Out"
-                style={{ marginLeft: '8px' }}
-              >
-                <FiLogOut /> Logout
-              </button>
-            </div>
-          )}
-        </nav>
+      {/* Right side */}
+      <div className="flex items-center gap-3">
+        {/* Emergency button — visible to all logged-in users */}
+        {user && (
+          <button
+            onClick={() => navigate('/nearby-hospitals')}
+            className="bg-red-600 hover:bg-red-700 text-white text-sm font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition animate-pulse"
+          >
+            🚨 Nearby Hospitals
+          </button>
+        )}
+
+        {user && (
+          <span className="text-sm text-gray-600 hidden sm:block">
+            {user.name} &nbsp;
+            <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full capitalize">
+              {user.role}
+            </span>
+          </span>
+        )}
+
+        {user && (
+          <button
+            onClick={handleLogout}
+            className="text-sm text-gray-500 hover:text-red-500 border border-gray-200 px-3 py-1.5 rounded-lg hover:border-red-300 transition"
+          >
+            Logout
+          </button>
+        )}
       </div>
-    </header>
+    </nav>
   );
-};
-
-export default Navbar;
+}
