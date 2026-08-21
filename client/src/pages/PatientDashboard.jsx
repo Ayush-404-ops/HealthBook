@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
 import SlotPicker from '../components/SlotPicker';
+import SymptomNavigator from '../components/SymptomNavigator';
 import toast from 'react-hot-toast';
 import {
   FiSearch,
@@ -16,6 +17,8 @@ import {
   FiCheckCircle,
   FiAlertCircle,
   FiXCircle,
+  FiCreditCard,
+  FiCpu,
 } from 'react-icons/fi';
 
 const SPECIALTIES = [
@@ -55,6 +58,7 @@ const PatientDashboard = () => {
   // Appointments State
   const [myAppointments, setMyAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [payingApptId, setPayingApptId] = useState(null);
 
   useEffect(() => {
     fetchDoctors();
@@ -110,6 +114,67 @@ const PatientDashboard = () => {
     }
   };
 
+  // Phase 5: Razorpay Checkout Handler
+  const handlePayNow = async (appointmentId) => {
+    setPayingApptId(appointmentId);
+    try {
+      // 1. Create Razorpay order on backend
+      const orderRes = await api.post('/payments/create-order', { appointmentId });
+      if (!orderRes.data?.success) {
+        throw new Error(orderRes.data?.message || 'Order creation failed');
+      }
+
+      const { orderId, amount, currency, keyId } = orderRes.data.data;
+
+      // 2. Configure Razorpay Modal Options
+      const options = {
+        key: keyId,
+        amount: amount,
+        currency: currency,
+        name: 'HealthBook Medical',
+        description: 'Doctor Consultation Checkout',
+        order_id: orderId,
+        handler: async (response) => {
+          try {
+            // 3. Verify Payment Signature
+            const verifyRes = await api.post('/payments/verify', {
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_signature: response.razorpay_signature,
+              appointmentId,
+            });
+
+            if (verifyRes.data?.success) {
+              toast.success('Payment verified & consultation confirmed! 🎉');
+              fetchMyAppointments();
+            }
+          } catch (err) {
+            toast.error(err.message || 'Payment verification failed');
+          }
+        },
+        prefill: {
+          name: user?.name,
+          email: user?.email,
+        },
+        theme: {
+          color: '#00d4aa',
+        },
+      };
+
+      if (!window.Razorpay) {
+        toast.error('Razorpay SDK failed to load. Please refresh the page.');
+        return;
+      }
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (err) {
+      toast.error(err.message || 'Failed to initiate payment');
+    } finally {
+      setPayingApptId(null);
+    }
+  };
+
   const handleBookingSuccess = (newAppointment) => {
     setSelectedDoctor(null);
     fetchMyAppointments();
@@ -140,7 +205,7 @@ const PatientDashboard = () => {
               <h1>
                 Patient Portal — <span className="text-gradient">{user?.name}</span>
               </h1>
-              <p>Explore specialists, book consultation slots, and track your medical appointments.</p>
+              <p>Explore specialists, navigate symptoms with AI, and manage consultations.</p>
             </div>
             <span className="badge badge-primary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
               Patient Account
@@ -172,9 +237,16 @@ const PatientDashboard = () => {
           </button>
         </div>
 
-        {/* TAB 1: Doctor Directory */}
+        {/* TAB 1: Doctor Directory & AI Symptom Navigator */}
         {activeTab === 'directory' && (
           <>
+            {/* Phase 6: AI Symptom Navigator */}
+            <SymptomNavigator
+              onApplySpecialty={(spec) => {
+                setSelectedSpecialty(spec);
+              }}
+            />
+
             {/* Filter Bar */}
             <div
               className="card animate-fade-up"
@@ -201,7 +273,7 @@ const PatientDashboard = () => {
                 </div>
 
                 <div className="input-group">
-                  <label htmlFor="specialty-filter">Specialty</label>
+                  <label htmlFor="specialty-filter">Specialty Filter</label>
                   <select
                     id="specialty-filter"
                     className="input"
@@ -330,7 +402,6 @@ const PatientDashboard = () => {
                         </span>
                       </div>
 
-                      {/* Days tags */}
                       <div>
                         <span
                           style={{
@@ -378,7 +449,7 @@ const PatientDashboard = () => {
           </>
         )}
 
-        {/* TAB 2: My Appointments */}
+        {/* TAB 2: My Appointments & Razorpay Pay Now */}
         {activeTab === 'appointments' && (
           <div>
             {loadingAppointments ? (
@@ -409,6 +480,8 @@ const PatientDashboard = () => {
                       ? 'badge-danger'
                       : 'badge-warning';
 
+                  const isUnpaid = appt.payment?.status === 'unpaid' && appt.status !== 'cancelled';
+
                   return (
                     <div
                       key={appt._id}
@@ -434,7 +507,7 @@ const PatientDashboard = () => {
                               appt.payment?.status === 'paid' ? 'badge-success' : 'badge-warning'
                             }`}
                           >
-                            {appt.payment?.status === 'paid' ? 'PAID' : 'UNPAID'}
+                            {appt.payment?.status === 'paid' ? 'PAID ✓' : 'UNPAID'}
                           </span>
                         </div>
 
@@ -477,14 +550,26 @@ const PatientDashboard = () => {
                         )}
                       </div>
 
-                      <div>
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
+                        {/* Phase 5: Razorpay Pay Now button */}
+                        {isUnpaid && (
+                          <button
+                            type="button"
+                            className="btn btn-primary"
+                            disabled={payingApptId === appt._id}
+                            onClick={() => handlePayNow(appt._id)}
+                          >
+                            <FiCreditCard /> {payingApptId === appt._id ? 'Processing...' : `Pay Now (₹${appt.payment?.amount || appt.doctor?.fee})`}
+                          </button>
+                        )}
+
                         {['pending', 'confirmed'].includes(appt.status) && (
                           <button
                             type="button"
                             className="btn btn-danger btn-sm"
                             onClick={() => handleCancelAppointment(appt._id)}
                           >
-                            <FiXCircle /> Cancel Appointment
+                            <FiXCircle /> Cancel
                           </button>
                         )}
                       </div>
@@ -496,7 +581,7 @@ const PatientDashboard = () => {
           </div>
         )}
 
-        {/* Doctor Details & Booking Modal */}
+        {/* Doctor Booking Modal */}
         {selectedDoctor && (
           <div
             style={{
@@ -578,7 +663,7 @@ const PatientDashboard = () => {
                 </div>
               </div>
 
-              {/* SlotPicker Component */}
+              {/* SlotPicker */}
               <SlotPicker doctor={selectedDoctor} onBookingSuccess={handleBookingSuccess} />
             </div>
           </div>
