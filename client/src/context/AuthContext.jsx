@@ -13,7 +13,8 @@ export const AuthProvider = ({ children }) => {
       try {
         const res = await api.get('/auth/me');
         if (res.data?.success) {
-          setUser(res.data.data);
+          const userData = res.data.data || res.data.user;
+          setUser(userData);
         }
       } catch {
         setUser(null);
@@ -27,8 +28,9 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     if (res.data?.success) {
-      setUser(res.data.data);
-      return res.data.data;
+      const userData = res.data.data || res.data.user;
+      setUser(userData);
+      return userData;
     }
     throw new Error(res.data?.message || 'Login failed');
   };
@@ -36,8 +38,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     const res = await api.post('/auth/register', userData);
     if (res.data?.success) {
-      setUser(res.data.data);
-      return res.data.data;
+      const newUser = res.data.data || res.data.user;
+      setUser(newUser);
+      return newUser;
     }
     throw new Error(res.data?.message || 'Registration failed');
   };

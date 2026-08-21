@@ -15,35 +15,44 @@ const signTokenAndSend = (user, statusCode, res) => {
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
+  const userData = {
+    _id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role,
+    phone: user.phone,
+  };
+
   res.status(statusCode).json({
     success: true,
-    user: {
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    },
+    data: userData,
+    user: userData,
   });
 };
 
 // POST /api/auth/register
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, role, phone } = req.body;
+    const { name, email, password, role, phone, specialty, fee, experienceYears } = req.body;
 
     const allowedRoles = ['patient', 'doctor'];
     const userRole = allowedRoles.includes(role) ? role : 'patient';
 
-    const existing = await User.findOne({ email });
+    const existing = await User.findOne({ email: email.toLowerCase().trim() });
     if (existing) {
-      return res.status(409).json({ success: false, message: 'Email already in use' });
+      return res.status(409).json({ success: false, message: 'Email is already in use. Please sign in instead.' });
     }
 
     const user = await User.create({ name, email, password, role: userRole, phone });
 
-    // If registering as doctor, create Doctor profile stub
+    // If registering as doctor, create Doctor profile stub with initial details
     if (userRole === 'doctor') {
-      await Doctor.create({ user: user._id });
+      await Doctor.create({
+        user: user._id,
+        specialty: specialty || '',
+        fee: Number(fee) || 0,
+        experienceYears: Number(experienceYears) || 0,
+      });
     }
 
     signTokenAndSend(user, 201, res);
@@ -61,7 +70,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Email and password are required' });
     }
 
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email: email.toLowerCase().trim() }).select('+password');
     if (!user || !(await user.comparePassword(password))) {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
@@ -81,14 +90,17 @@ exports.logout = (req, res) => {
 
 // GET /api/auth/me
 exports.getMe = async (req, res) => {
+  const userData = {
+    _id: req.user._id,
+    name: req.user.name,
+    email: req.user.email,
+    role: req.user.role,
+    phone: req.user.phone,
+  };
+
   res.json({
     success: true,
-    user: {
-      _id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-      phone: req.user.phone,
-    },
+    data: userData,
+    user: userData,
   });
 };
