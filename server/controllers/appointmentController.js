@@ -98,3 +98,35 @@ exports.cancelAppointment = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+
+// PATCH /api/appointments/:id/status  – doctor updates appointment status
+exports.updateAppointmentStatus = async (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const doctorProfile = await Doctor.findOne({ user: req.user._id });
+    if (!doctorProfile) {
+      return res.status(404).json({ success: false, message: 'Doctor profile not found' });
+    }
+
+    const appointment = await Appointment.findOne({
+      _id: req.params.id,
+      doctor: doctorProfile._id,
+    });
+
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    appointment.status = status;
+    await appointment.save();
+
+    res.json({ success: true, data: appointment });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
