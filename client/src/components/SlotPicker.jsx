@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
 import Spinner from './Spinner';
 import toast from 'react-hot-toast';
-import { FiCalendar, FiClock, FiCheck, FiFileText } from 'react-icons/fi';
+import { FiCalendar, FiCheck, FiFileText } from 'react-icons/fi';
 
 const SlotPicker = ({ doctor, onBookingSuccess }) => {
   // Today's date in YYYY-MM-DD format
@@ -23,13 +23,7 @@ const SlotPicker = ({ doctor, onBookingSuccess }) => {
   const [booking, setBooking] = useState(false);
   const [message, setMessage] = useState('');
 
-  useEffect(() => {
-    if (doctor?._id && date) {
-      fetchSlots();
-    }
-  }, [doctor?._id, date]);
-
-  const fetchSlots = async () => {
+  const fetchSlots = useCallback(async () => {
     try {
       setLoadingSlots(true);
       setSelectedSlot('');
@@ -44,13 +38,18 @@ const SlotPicker = ({ doctor, onBookingSuccess }) => {
           setMessage(res.data.message);
         }
       }
-    } catch (err) {
-      toast.error(err.message || 'Failed to fetch available slots');
-      setSlots([]);
+    } catch {
+      toast.error('Failed to load slots for this date');
     } finally {
       setLoadingSlots(false);
     }
-  };
+  }, [doctor?._id, date]);
+
+  useEffect(() => {
+    if (doctor?._id && date) {
+      fetchSlots();
+    }
+  }, [doctor?._id, date, fetchSlots]);
 
   const handleBook = async (e) => {
     e.preventDefault();

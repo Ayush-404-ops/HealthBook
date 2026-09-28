@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiHeart, FiMail, FiLock, FiArrowRight } from 'react-icons/fi';
+import { FiHeart, FiArrowRight } from 'react-icons/fi';
+import { getRoleDashboardPath } from '../utils/roleUtils';
 import toast from 'react-hot-toast';
 
 const Login = () => {
@@ -30,13 +31,7 @@ const Login = () => {
       if (from) {
         navigate(from, { replace: true });
       } else {
-        const dest =
-          loggedUser.role === 'admin'
-            ? '/admin'
-            : loggedUser.role === 'doctor'
-            ? '/doctor'
-            : '/patient';
-        navigate(dest, { replace: true });
+        navigate(getRoleDashboardPath(loggedUser), { replace: true });
       }
     } catch (err) {
       toast.error(err.message || 'Login failed. Check your credentials.');

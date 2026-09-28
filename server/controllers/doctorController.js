@@ -29,7 +29,11 @@ exports.getDoctors = async (req, res) => {
     const { specialty, name, minFee, maxFee } = req.query;
 
     const filter = { isApproved: true };
-    if (specialty) filter.specialty = { $regex: specialty, $options: 'i' };
+    if (specialty && typeof specialty === 'string') {
+      // Escape regex special characters to prevent ReDoS attacks
+      const escapedSpecialty = specialty.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      filter.specialty = { $regex: escapedSpecialty, $options: 'i' };
+    }
     if (minFee || maxFee) {
       filter.fee = {};
       if (minFee) filter.fee.$gte = Number(minFee);
@@ -47,7 +51,7 @@ exports.getDoctors = async (req, res) => {
     res.json({ success: true, count: doctors.length, data: doctors });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -61,7 +65,7 @@ exports.getDoctorById = async (req, res) => {
     res.json({ success: true, data: doctor });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -109,7 +113,7 @@ exports.getAvailableSlots = async (req, res) => {
     res.json({ success: true, data: available, weekday });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -131,7 +135,7 @@ exports.updateDoctorProfile = async (req, res) => {
     res.json({ success: true, data: doctor });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -145,6 +149,6 @@ exports.getMyDoctorProfile = async (req, res) => {
     res.json({ success: true, data: doctor });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };

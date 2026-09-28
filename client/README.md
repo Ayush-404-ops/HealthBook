@@ -1,16 +1,50 @@
-# React + Vite
+# HealthBook Client
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+The frontend for the HealthBook Doctor Appointment & Healthcare Navigation platform, built with React 19, Vite, and React Router v7.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Features
 
-## React Compiler
+- **Role-Based Authentication**: Secure authentication via HttpOnly JWT cookies with automatic role routing (`/patient`, `/doctor`, `/admin`).
+- **AI Symptom Navigator**: Instant specialty recommendation powered by Google Gemini with rule-based fallback.
+- **Doctor Directory & Booking**: Real-time slot generation and selection based on doctor working hours and existing bookings.
+- **Integrated Payments**: Razorpay checkout with client-side verification and refund state display.
+- **Emergency Hospital Navigator**: Real-time GPS location, Overpass API query for nearby hospitals, Leaflet map rendering, and Dijkstra pathfinding across OSRM driving route alternatives.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the Oxlint configuration
+## Development Setup
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+```bash
+# 1. Install dependencies
+npm install
+
+# 2. Configure environment (optional, defaults to http://localhost:5000/api)
+cp .env.example .env
+
+# 3. Start development server
+npm run dev
+
+# 4. Production build
+npm run build
+
+# 5. Lint
+npm run lint
+```
+
+---
+
+## Project Structure
+
+```
+src/
+├── api/            # Axios instance and API interceptors
+├── components/     # Reusable UI components (Navbar, SlotPicker, SymptomNavigator, etc.)
+├── context/        # AuthContext for session management
+├── pages/          # Application views (Landing, Login, Register, Dashboards, NearbyHospitals)
+├── utils/          # Dijkstra pathfinding and role-routing utilities
+├── App.jsx         # Route configuration
+├── index.css       # Design system CSS variables and layout styles
+└── main.jsx        # Root mount point
+```

@@ -33,6 +33,7 @@ const appointmentSchema = new mongoose.Schema(
       },
       razorpayOrderId: { type: String },
       razorpayPaymentId: { type: String },
+      razorpayRefundId: { type: String },
       amount: { type: Number, default: 0 },
     },
     notes: { type: String, default: '' },

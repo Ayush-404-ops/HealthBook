@@ -26,7 +26,6 @@ const signTokenAndSend = (user, statusCode, res) => {
   res.status(statusCode).json({
     success: true,
     data: userData,
-    user: userData,
   });
 };
 
@@ -58,7 +57,7 @@ exports.register = async (req, res) => {
     signTokenAndSend(user, 201, res);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -78,7 +77,7 @@ exports.login = async (req, res) => {
     signTokenAndSend(user, 200, res);
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -101,6 +100,5 @@ exports.getMe = async (req, res) => {
   res.json({
     success: true,
     data: userData,
-    user: userData,
   });
 };

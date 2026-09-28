@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
@@ -10,10 +10,6 @@ import {
   FiDollarSign,
   FiCheckCircle,
   FiXCircle,
-  FiSearch,
-  FiFilter,
-  FiAward,
-  FiMail,
 } from 'react-icons/fi';
 
 const AdminDashboard = () => {
@@ -32,12 +28,7 @@ const AdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionId, setActionId] = useState(null);
 
-  useEffect(() => {
-    fetchStats();
-    fetchDoctors();
-  }, [statusFilter]);
-
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       setLoadingStats(true);
       const res = await api.get('/admin/stats');
@@ -49,9 +40,9 @@ const AdminDashboard = () => {
     } finally {
       setLoadingStats(false);
     }
-  };
+  }, []);
 
-  const fetchDoctors = async () => {
+  const fetchDoctors = useCallback(async () => {
     try {
       setLoadingDoctors(true);
       const res = await api.get('/admin/doctors', {
@@ -65,7 +56,12 @@ const AdminDashboard = () => {
     } finally {
       setLoadingDoctors(false);
     }
-  };
+  }, [statusFilter]);
+
+  useEffect(() => {
+    fetchStats();
+    fetchDoctors();
+  }, [fetchStats, fetchDoctors]);
 
   const handleApprove = async (doctorId) => {
     setActionId(doctorId);

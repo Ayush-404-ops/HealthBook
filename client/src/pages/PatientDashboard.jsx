@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
@@ -9,16 +9,12 @@ import {
   FiSearch,
   FiCalendar,
   FiClock,
-  FiUser,
   FiDollarSign,
   FiAward,
   FiX,
   FiChevronRight,
-  FiCheckCircle,
-  FiAlertCircle,
   FiXCircle,
   FiCreditCard,
-  FiCpu,
 } from 'react-icons/fi';
 
 const SPECIALTIES = [
@@ -60,12 +56,7 @@ const PatientDashboard = () => {
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [payingApptId, setPayingApptId] = useState(null);
 
-  useEffect(() => {
-    fetchDoctors();
-    fetchMyAppointments();
-  }, [selectedSpecialty, maxFee]);
-
-  const fetchDoctors = async () => {
+  const fetchDoctors = useCallback(async () => {
     try {
       setLoadingDoctors(true);
       const params = {};
@@ -85,9 +76,9 @@ const PatientDashboard = () => {
     } finally {
       setLoadingDoctors(false);
     }
-  };
+  }, [selectedSpecialty, maxFee]);
 
-  const fetchMyAppointments = async () => {
+  const fetchMyAppointments = useCallback(async () => {
     try {
       setLoadingAppointments(true);
       const res = await api.get('/appointments/mine');
@@ -99,7 +90,12 @@ const PatientDashboard = () => {
     } finally {
       setLoadingAppointments(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchDoctors();
+    fetchMyAppointments();
+  }, [fetchDoctors, fetchMyAppointments]);
 
   const handleCancelAppointment = async (id) => {
     if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
@@ -175,7 +171,7 @@ const PatientDashboard = () => {
     }
   };
 
-  const handleBookingSuccess = (newAppointment) => {
+  const handleBookingSuccess = () => {
     setSelectedDoctor(null);
     fetchMyAppointments();
     setActiveTab('appointments');
@@ -504,10 +500,18 @@ const PatientDashboard = () => {
                           </span>
                           <span
                             className={`badge ${
-                              appt.payment?.status === 'paid' ? 'badge-success' : 'badge-warning'
+                              appt.payment?.status === 'paid'
+                                ? 'badge-success'
+                                : appt.payment?.status === 'refunded'
+                                ? 'badge-secondary'
+                                : 'badge-warning'
                             }`}
                           >
-                            {appt.payment?.status === 'paid' ? 'PAID ✓' : 'UNPAID'}
+                            {appt.payment?.status === 'paid'
+                              ? 'PAID ✓'
+                              : appt.payment?.status === 'refunded'
+                              ? 'REFUNDED'
+                              : 'UNPAID'}
                           </span>
                         </div>
 

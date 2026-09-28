@@ -13,7 +13,7 @@ export const AuthProvider = ({ children }) => {
       try {
         const res = await api.get('/auth/me');
         if (res.data?.success) {
-          const userData = res.data.data || res.data.user;
+          const userData = res.data.data;
           setUser(userData);
         }
       } catch {
@@ -28,7 +28,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const res = await api.post('/auth/login', { email, password });
     if (res.data?.success) {
-      const userData = res.data.data || res.data.user;
+      const userData = res.data.data;
       setUser(userData);
       return userData;
     }
@@ -38,7 +38,7 @@ export const AuthProvider = ({ children }) => {
   const register = async (userData) => {
     const res = await api.post('/auth/register', userData);
     if (res.data?.success) {
-      const newUser = res.data.data || res.data.user;
+      const newUser = res.data.data;
       setUser(newUser);
       return newUser;
     }

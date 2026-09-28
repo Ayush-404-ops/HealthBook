@@ -42,7 +42,7 @@ exports.navigate = async (req, res) => {
 
     try {
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
 
       const prompt = `You are a medical triage assistant. Given the patient's symptom description below, respond ONLY with valid JSON in this exact shape: { "specialty": "<string>", "reasoning": "<one sentence>" }. Do not include any text outside the JSON object. Common specialties to choose from include: General Physician, Cardiologist, Dermatologist, Neurologist, Orthopedist, Pulmonologist, Gastroenterologist, Endocrinologist, Psychiatrist, ENT Specialist, Ophthalmologist, Gynecologist, Pediatrician, Urologist, Nephrologist, Oncologist, Rheumatologist, Dentist.
 

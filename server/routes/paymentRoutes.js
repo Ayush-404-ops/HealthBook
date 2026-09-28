@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { createOrder, verifyPayment } = require('../controllers/paymentController');
+const { createOrder, verifyPayment, refundPayment } = require('../controllers/paymentController');
 const { protect, authorize } = require('../middleware/auth');
 
-router.use(protect, authorize('patient'));
+router.use(protect);
 
-router.post('/create-order', createOrder);
-router.post('/verify', verifyPayment);
+router.post('/create-order', authorize('patient'), createOrder);
+router.post('/verify', authorize('patient'), verifyPayment);
+router.post('/refund', authorize('patient', 'doctor', 'admin'), refundPayment);
 
 module.exports = router;

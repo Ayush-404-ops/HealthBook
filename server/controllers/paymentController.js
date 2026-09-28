@@ -3,9 +3,47 @@ const crypto = require('crypto');
 const Appointment = require('../models/Appointment');
 
 const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
+  key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret',
 });
+
+/**
+ * Reusable helper to process a refund on Razorpay and update appointment payment status.
+ */
+const processRefund = async (appointment) => {
+  if (!appointment || !appointment.payment || appointment.payment.status !== 'paid') {
+    return { success: false, message: 'Appointment is not in paid status' };
+  }
+
+  let refundDetails = null;
+  const isKeyConfigured =
+    process.env.RAZORPAY_KEY_ID &&
+    !process.env.RAZORPAY_KEY_ID.includes('xxxx') &&
+    process.env.RAZORPAY_KEY_SECRET &&
+    !process.env.RAZORPAY_KEY_SECRET.includes('xxxx');
+
+  if (appointment.payment.razorpayPaymentId && isKeyConfigured) {
+    try {
+      refundDetails = await razorpay.payments.refund(appointment.payment.razorpayPaymentId, {
+        amount: Math.round(appointment.payment.amount * 100), // paise
+        notes: {
+          appointmentId: appointment._id.toString(),
+          reason: 'Appointment cancellation refund',
+        },
+      });
+    } catch (err) {
+      console.error('Razorpay refund API call failed:', err);
+    }
+  }
+
+  appointment.payment.status = 'refunded';
+  if (refundDetails?.id) {
+    appointment.payment.razorpayRefundId = refundDetails.id;
+  }
+  return { success: true, refund: refundDetails };
+};
+
+exports.processRefund = processRefund;
 
 // POST /api/payments/create-order  – create a Razorpay order for an appointment
 exports.createOrder = async (req, res) => {
@@ -49,7 +87,7 @@ exports.createOrder = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -58,37 +96,94 @@ exports.verifyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, appointmentId } = req.body;
 
-    // Server-side HMAC verification
-    const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex');
-
-    if (expectedSignature !== razorpay_signature) {
-      return res.status(400).json({ success: false, message: 'Payment verification failed. Invalid signature.' });
-    }
-
-    // Update appointment on verified payment
-    const appointment = await Appointment.findByIdAndUpdate(
-      appointmentId,
-      {
-        status: 'confirmed',
-        'payment.status': 'paid',
-        'payment.razorpayPaymentId': razorpay_payment_id,
-      },
-      { new: true }
-    ).populate([
-      { path: 'doctor', populate: { path: 'user', select: 'name email' } },
-      { path: 'patient', select: 'name email' },
-    ]);
+    // 1. Ownership check — only the patient who owns this appointment may verify
+    const appointment = await Appointment.findOne({
+      _id: appointmentId,
+      patient: req.user._id,
+    });
 
     if (!appointment) {
       return res.status(404).json({ success: false, message: 'Appointment not found' });
     }
 
-    res.json({ success: true, message: 'Payment verified. Appointment confirmed!', data: appointment });
+    // 2. Ensure the Razorpay order ID matches the one we stored during createOrder
+    if (appointment.payment.razorpayOrderId !== razorpay_order_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'Order ID mismatch. This payment does not belong to this appointment.',
+      });
+    }
+
+    // 3. Reject if already paid (prevent double-confirmation)
+    if (appointment.payment.status === 'paid') {
+      return res.status(400).json({ success: false, message: 'This appointment is already paid' });
+    }
+
+    // 4. Server-side HMAC signature verification
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+
+    if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(razorpay_signature))) {
+      return res.status(400).json({ success: false, message: 'Payment verification failed. Invalid signature.' });
+    }
+
+    // 5. All checks passed — mark as paid and confirmed
+    appointment.status = 'confirmed';
+    appointment.payment.status = 'paid';
+    appointment.payment.razorpayPaymentId = razorpay_payment_id;
+    await appointment.save();
+
+    // Re-fetch with populated references for the response
+    const populated = await Appointment.findById(appointment._id).populate([
+      { path: 'doctor', populate: { path: 'user', select: 'name email' } },
+      { path: 'patient', select: 'name email' },
+    ]);
+
+    res.json({ success: true, message: 'Payment verified. Appointment confirmed!', data: populated });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
+  }
+};
+
+// POST /api/payments/refund  – refund a paid appointment
+exports.refundPayment = async (req, res) => {
+  try {
+    const { appointmentId } = req.body;
+    if (!appointmentId) {
+      return res.status(400).json({ success: false, message: 'appointmentId is required' });
+    }
+
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    const isOwner = appointment.patient.toString() === req.user._id.toString();
+    if (!isOwner && req.user.role !== 'admin' && req.user.role !== 'doctor') {
+      return res.status(403).json({ success: false, message: 'Not authorized to refund this appointment' });
+    }
+
+    if (appointment.payment.status !== 'paid') {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot refund appointment with payment status "${appointment.payment.status}"`,
+      });
+    }
+
+    await processRefund(appointment);
+    appointment.status = 'cancelled';
+    await appointment.save();
+
+    res.json({
+      success: true,
+      message: 'Payment refunded successfully and appointment cancelled',
+      data: appointment,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };

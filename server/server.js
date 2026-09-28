@@ -37,10 +37,15 @@ app.get('/api/health', (req, res) => {
 
 // ─── Error Handler ─────────────────────────────────────────────────────────────
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(err.statusCode || 500).json({
+  console.error(err.stack || err);
+  const status = err.statusCode || err.status || 500;
+  const message = status === 500
+    ? 'Internal server error. Please try again later.'
+    : (err.message || 'Something went wrong');
+
+  res.status(status).json({
     success: false,
-    message: err.message || 'Internal Server Error',
+    message,
   });
 });
 
@@ -51,7 +56,25 @@ mongoose
   .connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected');
-    app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+
+      // ── Configuration warnings ──────────────────────────────────
+      const warnings = [];
+      if (!process.env.RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID.includes('xxxx')) {
+        warnings.push('RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET — payments will fail');
+      }
+      if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes('your_gemini')) {
+        warnings.push('GEMINI_API_KEY — AI navigator will use keyword fallback only');
+      }
+      if (warnings.length > 0) {
+        console.warn('');
+        console.warn('⚠️  The following .env keys are still set to placeholder values:');
+        warnings.forEach((w) => console.warn(`   • ${w}`));
+        console.warn('   Update server/.env with real keys to enable these features.');
+        console.warn('');
+      }
+    });
   })
   .catch((err) => {
     console.error('❌ MongoDB connection error:', err);

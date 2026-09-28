@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiHeart, FiUser, FiActivity, FiArrowRight } from 'react-icons/fi';
+import { FiHeart, FiArrowRight } from 'react-icons/fi';
+import { getRoleDashboardPath } from '../utils/roleUtils';
 import toast from 'react-hot-toast';
 
 const Register = () => {
@@ -53,14 +54,7 @@ const Register = () => {
 
       const newUser = await register(payload);
       toast.success(`Account created! Welcome, ${newUser.name}`);
-
-      const dest =
-        newUser.role === 'admin'
-          ? '/admin'
-          : newUser.role === 'doctor'
-          ? '/doctor'
-          : '/patient';
-      navigate(dest, { replace: true });
+      navigate(getRoleDashboardPath(newUser), { replace: true });
     } catch (err) {
       toast.error(err.message || 'Registration failed');
     } finally {

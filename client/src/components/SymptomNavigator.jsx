@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import api from '../api/axios';
-import Spinner from './Spinner';
 import toast from 'react-hot-toast';
-import { FiCpu, FiArrowRight, FiCheckCircle, FiHelpCircle } from 'react-icons/fi';
+import { FiCpu, FiArrowRight, FiCheckCircle } from 'react-icons/fi';
 
 const SymptomNavigator = ({ onApplySpecialty }) => {
   const [symptoms, setSymptoms] = useState('');

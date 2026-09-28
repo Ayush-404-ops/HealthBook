@@ -2,16 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { FiCheckCircle, FiCalendar, FiShield, FiCpu, FiArrowRight } from 'react-icons/fi';
 import { useAuth } from '../context/AuthContext';
+import { getRoleDashboardPath } from '../utils/roleUtils';
 
 const Landing = () => {
   const { isAuthenticated, user } = useAuth();
-
-  const getDashboardPath = () => {
-    if (!user) return '/register';
-    if (user.role === 'admin') return '/admin';
-    if (user.role === 'doctor') return '/doctor';
-    return '/patient';
-  };
 
   return (
     <div className="landing-hero">
@@ -36,7 +30,7 @@ const Landing = () => {
 
           <div className="landing-actions">
             {isAuthenticated ? (
-              <Link to={getDashboardPath()} className="btn btn-primary btn-lg">
+              <Link to={getRoleDashboardPath(user)} className="btn btn-primary btn-lg">
                 Go to Your Dashboard <FiArrowRight />
               </Link>
             ) : (

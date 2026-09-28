@@ -16,14 +16,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
   }
 
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    // Role mismatch, route to appropriate dashboard
-    const redirectPath =
-      user.role === 'admin'
-        ? '/admin'
-        : user.role === 'doctor'
-        ? '/doctor'
-        : '/patient';
-    return <Navigate to={redirectPath} replace />;
+    return <Navigate to="/unauthorized" replace />;
   }
 
   return children;

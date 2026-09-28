@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { dijkstra, getPath } from '../utils/dijkstra.js';
@@ -77,9 +77,9 @@ async function fetchNearbyHospitals(lat, lng, radiusMeters = 5000) {
     .filter((h) => h.lat && h.lng); // drop any with missing coordinates
 }
 
-// Helper: fetch route from OSRM and build a graph for Dijkstra
-async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng) {
-  const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson&steps=true`;
+// Helper: fetch route from OSRM with alternatives and build an intersection graph for real Dijkstra pathfinding
+async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng, hospitalName = 'Hospital') {
+  const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
   const res = await fetch(url);
   if (!res.ok) throw new Error('OSRM API request failed');
   const data = await res.json();
@@ -88,36 +88,193 @@ async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng) {
     throw new Error('No route found');
   }
 
-  const route = data.routes[0];
-  const steps = route.legs[0].steps;
+  const startNode = 'Start Location';
+  const endNode = `Dest: ${hospitalName}`;
+  const graph = { [startNode]: [], [endNode]: [] };
+  const nodeNames = { [startNode]: 'Your Location', [endNode]: hospitalName };
 
-  // Build adjacency graph from OSRM steps for Dijkstra
-  const graph = {};
-  steps.forEach((step, i) => {
-    const fromNode = `node_${i}`;
-    const toNode = `node_${i + 1}`;
-    if (!graph[fromNode]) graph[fromNode] = [];
-    if (!graph[toNode]) graph[toNode] = [];
-    graph[fromNode].push({ to: toNode, weight: step.distance });
+  // Helper to format coordinate keys so shared intersections between alternative routes merge
+  const toKey = ([lng, lat]) => `loc_${lat.toFixed(4)}_${lng.toFixed(4)}`;
+
+  // Process all alternative routes returned by OSRM to construct a genuine multi-path network graph
+  data.routes.forEach((route) => {
+    const steps = route.legs?.[0]?.steps || [];
+    if (steps.length === 0) return;
+
+    let prevNode = startNode;
+
+    steps.forEach((step, stepIdx) => {
+      const isLast = stepIdx === steps.length - 1;
+      const coord = step.maneuver?.location;
+      const nodeId = isLast ? endNode : toKey(coord);
+      const streetName = step.name || `Junction ${stepIdx + 1}`;
+
+      if (!graph[nodeId]) graph[nodeId] = [];
+      if (!nodeNames[nodeId]) nodeNames[nodeId] = streetName;
+
+      // Add edge from prevNode to nodeId with distance weight
+      const existingEdge = graph[prevNode].find((e) => e.to === nodeId);
+      if (!existingEdge) {
+        graph[prevNode].push({ to: nodeId, weight: Math.round(step.distance) });
+      } else if (step.distance < existingEdge.weight) {
+        // If an alternative route offers a shorter segment between same junctions, use shorter weight
+        existingEdge.weight = Math.round(step.distance);
+      }
+
+      prevNode = nodeId;
+    });
+
+    // Ensure connection to endNode
+    if (prevNode !== endNode) {
+      if (!graph[prevNode].some((e) => e.to === endNode)) {
+        graph[prevNode].push({ to: endNode, weight: 0 });
+      }
+    }
   });
 
-  // Run Dijkstra from the first node to the last
-  const startNode = 'node_0';
-  const endNode = `node_${steps.length}`;
+  // Run Dijkstra on the combined multi-route intersection network graph
   const { previous, distances } = dijkstra(graph, startNode);
-  const shortestPath = getPath(previous, endNode);
+  const rawPath = getPath(previous, endNode);
 
-  // Convert OSRM GeoJSON coordinates [lng, lat] → Leaflet [lat, lng]
-  const polylineCoords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
+  // Convert node IDs to friendly street/junction names (deduplicating adjacent identical names)
+  const friendlyPath = rawPath
+    .map((id) => nodeNames[id] || id)
+    .filter((name, idx, arr) => idx === 0 || name !== arr[idx - 1]);
+
+  // Identify the best route matching Dijkstra's shortest distance
+  let selectedRoute = data.routes[0];
+  let minDiff = Infinity;
+  const dijkstraDist = distances[endNode] || selectedRoute.distance;
+
+  data.routes.forEach((r) => {
+    const diff = Math.abs(r.distance - dijkstraDist);
+    if (diff < minDiff) {
+      minDiff = diff;
+      selectedRoute = r;
+    }
+  });
+
+  // Convert GeoJSON coordinates [lng, lat] → Leaflet [lat, lng]
+  const polylineCoords = selectedRoute.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
   return {
     polylineCoords,
-    distanceMeters: route.distance,
-    durationSeconds: route.duration,
-    dijkstraPath: shortestPath,
-    dijkstraDistance: distances[endNode],
+    distanceMeters: selectedRoute.distance,
+    durationSeconds: selectedRoute.duration,
+    dijkstraPath: friendlyPath,
+    dijkstraDistance: Math.round(dijkstraDist),
+    alternativesEvaluated: data.routes.length,
   };
 }
+
+/* ── Inline styles (replaces Tailwind utility classes) ─────────── */
+const styles = {
+  fullPage: {
+    minHeight: 'calc(100vh - 70px)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centeredCard: {
+    background: 'var(--clr-bg-card)',
+    border: '1px solid var(--clr-border)',
+    borderRadius: 'var(--r-xl)',
+    padding: 'var(--sp-10)',
+    maxWidth: '440px',
+    textAlign: 'center',
+    boxShadow: 'var(--shadow-md)',
+  },
+  headerBar: {
+    background: 'var(--clr-bg-card)',
+    borderBottom: '1px solid var(--clr-border)',
+    padding: 'var(--sp-4) var(--sp-6)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pageWrap: {
+    minHeight: 'calc(100vh - 70px)',
+    background: 'var(--clr-bg)',
+  },
+  columns: {
+    display: 'flex',
+    height: 'calc(100vh - 70px - 65px)',
+  },
+  sidebar: {
+    width: '320px',
+    flexShrink: 0,
+    background: 'var(--clr-bg-card)',
+    borderRight: '1px solid var(--clr-border)',
+    overflowY: 'auto',
+  },
+  hospitalItem: (isSelected) => ({
+    padding: 'var(--sp-4)',
+    borderBottom: '1px solid var(--clr-border)',
+    cursor: 'pointer',
+    transition: 'all var(--transition)',
+    background: isSelected ? 'var(--clr-primary-glow)' : 'transparent',
+    borderLeft: isSelected ? '4px solid var(--clr-primary)' : '4px solid transparent',
+  }),
+  hospitalName: {
+    fontWeight: 600,
+    color: 'var(--clr-text)',
+    fontSize: '0.88rem',
+  },
+  emergencyBadge: {
+    display: 'inline-block',
+    marginTop: '4px',
+    fontSize: '0.72rem',
+    background: 'rgba(255, 107, 107, 0.15)',
+    color: 'var(--clr-danger)',
+    padding: '2px 8px',
+    borderRadius: 'var(--r-full)',
+  },
+  phoneLine: {
+    fontSize: '0.75rem',
+    color: 'var(--clr-text-dim)',
+    marginTop: '4px',
+  },
+  clickHint: {
+    fontSize: '0.75rem',
+    color: 'var(--clr-primary)',
+    marginTop: '4px',
+  },
+  routeBar: {
+    background: 'var(--clr-bg-card)',
+    borderTop: '1px solid var(--clr-border)',
+    padding: 'var(--sp-4) var(--sp-6)',
+  },
+  routeGrid: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 'var(--sp-8)',
+  },
+  routeLabel: {
+    fontSize: '0.7rem',
+    color: 'var(--clr-text-dim)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.06em',
+  },
+  routeValue: {
+    fontWeight: 700,
+    color: 'var(--clr-text)',
+  },
+  dijkstraValue: {
+    fontSize: '0.75rem',
+    color: 'var(--clr-text-muted)',
+    fontFamily: 'monospace',
+  },
+  spinner: {
+    width: '16px',
+    height: '16px',
+    border: '2px solid var(--clr-primary)',
+    borderTop: '2px solid transparent',
+    borderRadius: '50%',
+    animation: 'spin 0.8s linear infinite',
+    display: 'inline-block',
+  },
+};
 
 export default function NearbyHospitals() {
   const [location, setLocation] = useState(null);
@@ -173,7 +330,8 @@ export default function NearbyHospitals() {
     try {
       const result = await fetchRouteAndRunDijkstra(
         location.lat, location.lng,
-        hospital.lat, hospital.lng
+        hospital.lat, hospital.lng,
+        hospital.name
       );
       setRoute(result.polylineCoords);
       setRouteInfo({
@@ -181,6 +339,7 @@ export default function NearbyHospitals() {
         durationMin: Math.ceil(result.durationSeconds / 60),
         dijkstraPath: result.dijkstraPath,
         dijkstraDistance: Math.round(result.dijkstraDistance),
+        alternativesEvaluated: result.alternativesEvaluated,
       });
     } catch {
       setRouteError('Could not calculate route. The hospital may be unreachable by road.');
@@ -200,11 +359,11 @@ export default function NearbyHospitals() {
 
   if (locationError) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-        <div className="bg-white rounded-xl shadow p-8 max-w-md text-center">
-          <span className="text-5xl">📍</span>
-          <h2 className="text-xl font-bold mt-4 text-gray-800">Location Required</h2>
-          <p className="text-gray-500 mt-2">{locationError}</p>
+      <div style={styles.fullPage}>
+        <div style={styles.centeredCard} className="animate-fade-up">
+          <span style={{ fontSize: '3.5rem' }}>📍</span>
+          <h2 style={{ marginTop: 'var(--sp-4)' }}>Location Required</h2>
+          <p style={{ marginTop: 'var(--sp-2)' }}>{locationError}</p>
         </div>
       </div>
     );
@@ -212,55 +371,52 @@ export default function NearbyHospitals() {
 
   if (!location) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="animate-spin text-5xl mb-4">🌐</div>
-          <p className="text-gray-600 font-medium">Detecting your location…</p>
+      <div style={styles.fullPage}>
+        <div style={{ textAlign: 'center' }} className="animate-fade-up">
+          <div style={{ fontSize: '3.5rem', marginBottom: 'var(--sp-4)', animation: 'spin 2s linear infinite' }}>🌐</div>
+          <p style={{ fontWeight: 500 }}>Detecting your location…</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div style={styles.pageWrap}>
       {/* Header */}
-      <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
+      <div style={styles.headerBar}>
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">🏥 Nearby Hospitals</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
+          <h1 style={{ fontSize: '1.5rem' }}>🏥 Nearby Hospitals</h1>
+          <p style={{ fontSize: '0.85rem', marginTop: '2px' }}>
             Showing hospitals within 5 km of your location
           </p>
         </div>
         {selectedHospital && (
-          <button
-            onClick={clearRoute}
-            className="text-sm text-red-500 border border-red-300 px-3 py-1.5 rounded-lg hover:bg-red-50 transition"
-          >
+          <button onClick={clearRoute} className="btn btn-danger btn-sm">
             ✕ Clear Route
           </button>
         )}
       </div>
 
-      <div className="flex flex-col lg:flex-row h-[calc(100vh-73px)]">
+      <div style={styles.columns}>
         {/* Left panel — hospital list */}
-        <div className="w-full lg:w-80 bg-white border-r overflow-y-auto flex-shrink-0">
+        <div style={styles.sidebar}>
           {hospitalsLoading && (
-            <div className="p-6 text-center text-gray-500">
-              <div className="animate-pulse text-3xl mb-2">🔍</div>
-              <p className="text-sm">Searching for hospitals…</p>
+            <div style={{ padding: 'var(--sp-6)', textAlign: 'center', color: 'var(--clr-text-muted)' }}>
+              <div style={{ fontSize: '2rem', marginBottom: 'var(--sp-2)', animation: 'pulse-glow 1.5s infinite' }}>🔍</div>
+              <p style={{ fontSize: '0.85rem' }}>Searching for hospitals…</p>
             </div>
           )}
 
           {hospitalsError && (
-            <div className="p-4 m-4 bg-red-50 border border-red-200 rounded-lg text-red-600 text-sm">
+            <div className="alert alert-error" style={{ margin: 'var(--sp-4)' }}>
               {hospitalsError}
             </div>
           )}
 
           {!hospitalsLoading && !hospitalsError && hospitals.length === 0 && (
-            <div className="p-6 text-center text-gray-500">
-              <p className="text-3xl mb-2">🏥</p>
-              <p className="text-sm">No hospitals found within 5 km.</p>
+            <div style={{ padding: 'var(--sp-6)', textAlign: 'center', color: 'var(--clr-text-muted)' }}>
+              <p style={{ fontSize: '2rem', marginBottom: 'var(--sp-2)' }}>🏥</p>
+              <p style={{ fontSize: '0.85rem' }}>No hospitals found within 5 km.</p>
             </div>
           )}
 
@@ -268,28 +424,32 @@ export default function NearbyHospitals() {
             <div
               key={h.id}
               onClick={() => handleHospitalClick(h)}
-              className={`p-4 border-b cursor-pointer hover:bg-blue-50 transition ${
-                selectedHospital?.id === h.id ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-              }`}
+              style={styles.hospitalItem(selectedHospital?.id === h.id)}
+              onMouseEnter={(e) => {
+                if (selectedHospital?.id !== h.id) e.currentTarget.style.background = 'var(--clr-surface)';
+              }}
+              onMouseLeave={(e) => {
+                if (selectedHospital?.id !== h.id) e.currentTarget.style.background = 'transparent';
+              }}
             >
-              <p className="font-semibold text-gray-800 text-sm">{h.name}</p>
+              <p style={styles.hospitalName}>{h.name}</p>
               {h.emergency && (
-                <span className="inline-block mt-1 text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full">
+                <span style={styles.emergencyBadge}>
                   Emergency: {h.emergency}
                 </span>
               )}
               {h.phone && (
-                <p className="text-xs text-gray-400 mt-1">📞 {h.phone}</p>
+                <p style={styles.phoneLine}>📞 {h.phone}</p>
               )}
-              <p className="text-xs text-blue-500 mt-1">Click to show route →</p>
+              <p style={styles.clickHint}>Click to show route →</p>
             </div>
           ))}
         </div>
 
         {/* Right panel — map + route info */}
-        <div className="flex-1 flex flex-col">
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
           {/* Map */}
-          <div className="flex-1">
+          <div style={{ flex: 1 }}>
             <MapContainer
               center={[location.lat, location.lng]}
               zoom={14}
@@ -318,10 +478,19 @@ export default function NearbyHospitals() {
                 >
                   <Popup>
                     <strong>{h.name}</strong>
-                    {h.phone && <p className="text-xs mt-1">📞 {h.phone}</p>}
+                    {h.phone && <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>📞 {h.phone}</p>}
                     <button
                       onClick={() => handleHospitalClick(h)}
-                      className="mt-2 text-xs text-blue-600 underline block"
+                      style={{
+                        marginTop: '8px',
+                        fontSize: '0.75rem',
+                        color: 'var(--clr-accent)',
+                        textDecoration: 'underline',
+                        background: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
+                        display: 'block',
+                      }}
                     >
                       Get directions
                     </button>
@@ -331,42 +500,44 @@ export default function NearbyHospitals() {
 
               {/* Route polyline */}
               {route.length > 0 && (
-                <Polyline positions={route} color="#3B82F6" weight={5} opacity={0.8} />
+                <Polyline positions={route} color="#00d4aa" weight={5} opacity={0.8} />
               )}
             </MapContainer>
           </div>
 
           {/* Route info bar */}
           {(routeLoading || routeInfo || routeError) && (
-            <div className="bg-white border-t px-6 py-4">
+            <div style={styles.routeBar}>
               {routeLoading && (
-                <div className="flex items-center gap-2 text-gray-500 text-sm">
-                  <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', color: 'var(--clr-text-muted)', fontSize: '0.85rem' }}>
+                  <div style={styles.spinner} />
                   Calculating shortest route using Dijkstra's algorithm…
                 </div>
               )}
 
               {routeError && (
-                <p className="text-red-500 text-sm">{routeError}</p>
+                <p style={{ color: 'var(--clr-danger)', fontSize: '0.85rem' }}>{routeError}</p>
               )}
 
               {routeInfo && selectedHospital && (
-                <div className="flex flex-wrap items-center gap-6">
+                <div style={styles.routeGrid}>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Destination</p>
-                    <p className="font-semibold text-gray-800">{selectedHospital.name}</p>
+                    <p style={styles.routeLabel}>Destination</p>
+                    <p style={styles.routeValue}>{selectedHospital.name}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Distance</p>
-                    <p className="font-semibold text-gray-800">{routeInfo.distanceKm} km</p>
+                    <p style={styles.routeLabel}>Distance</p>
+                    <p style={styles.routeValue}>{routeInfo.distanceKm} km</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Est. Drive Time</p>
-                    <p className="font-semibold text-gray-800">{routeInfo.durationMin} min</p>
+                    <p style={styles.routeLabel}>Est. Drive Time</p>
+                    <p style={styles.routeValue}>{routeInfo.durationMin} min</p>
                   </div>
                   <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide">Dijkstra Path</p>
-                    <p className="text-xs text-gray-500 font-mono">
+                    <p style={styles.routeLabel}>
+                      Dijkstra Path {routeInfo.alternativesEvaluated > 1 ? `(${routeInfo.alternativesEvaluated} alternatives evaluated)` : ''}
+                    </p>
+                    <p style={styles.dijkstraValue}>
                       {routeInfo.dijkstraPath.join(' → ')} ({routeInfo.dijkstraDistance} m)
                     </p>
                   </div>

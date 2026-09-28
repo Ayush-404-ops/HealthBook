@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import Spinner from '../components/Spinner';
@@ -70,12 +70,7 @@ const DoctorDashboard = () => {
   const [appointments, setAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
 
-  useEffect(() => {
-    fetchProfile();
-    fetchAppointments();
-  }, []);
-
-  const fetchProfile = async () => {
+  const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
       const res = await api.get('/doctors/me/profile');
@@ -87,9 +82,9 @@ const DoctorDashboard = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchAppointments = async () => {
+  const fetchAppointments = useCallback(async () => {
     try {
       setLoadingAppointments(true);
       const res = await api.get('/appointments/doctor');
@@ -101,7 +96,12 @@ const DoctorDashboard = () => {
     } finally {
       setLoadingAppointments(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+    fetchAppointments();
+  }, [fetchProfile, fetchAppointments]);
 
   const handleUpdateStatus = async (appointmentId, newStatus) => {
     try {
@@ -550,10 +550,18 @@ const DoctorDashboard = () => {
                           </span>
                           <span
                             className={`badge ${
-                              appt.payment?.status === 'paid' ? 'badge-success' : 'badge-warning'
+                              appt.payment?.status === 'paid'
+                                ? 'badge-success'
+                                : appt.payment?.status === 'refunded'
+                                ? 'badge-secondary'
+                                : 'badge-warning'
                             }`}
                           >
-                            {appt.payment?.status === 'paid' ? 'PAID' : 'UNPAID'}
+                            {appt.payment?.status === 'paid'
+                              ? 'PAID'
+                              : appt.payment?.status === 'refunded'
+                              ? 'REFUNDED'
+                              : 'UNPAID'}
                           </span>
                         </div>
 
@@ -604,7 +612,7 @@ const DoctorDashboard = () => {
                           </button>
                         )}
 
-                        {['pending', 'confirmed'].includes(appt.status) && (
+                        {appt.status === 'confirmed' && appt.payment?.status === 'paid' && (
                           <button
                             type="button"
                             className="btn btn-primary btn-sm"

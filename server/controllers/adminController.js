@@ -17,7 +17,7 @@ exports.getAllDoctors = async (req, res) => {
     res.json({ success: true, count: doctors.length, data: doctors });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -35,7 +35,7 @@ exports.approveDoctor = async (req, res) => {
     res.json({ success: true, message: 'Doctor approved', data: doctor });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -53,7 +53,7 @@ exports.rejectDoctor = async (req, res) => {
     res.json({ success: true, message: 'Doctor rejected', data: doctor });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
 
@@ -83,6 +83,6 @@ exports.getStats = async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ success: false, message: err.message });
+    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
