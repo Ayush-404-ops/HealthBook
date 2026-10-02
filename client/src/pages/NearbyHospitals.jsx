@@ -1,9 +1,25 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { dijkstra, getPath } from '../utils/dijkstra.js';
+import { PublicLayout } from '../components/layout/PublicLayout';
+import { Card } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import {
+  MapPin,
+  Navigation,
+  Phone,
+  ExternalLink,
+  Compass,
+  AlertCircle,
+  Clock,
+  Loader2,
+  X,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-// Fix Leaflet's default marker icon broken by Vite's asset pipeline
+// Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
@@ -11,7 +27,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-// Custom red icon for user's current location
 const userIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -20,7 +35,6 @@ const userIcon = new L.Icon({
   popupAnchor: [1, -34],
 });
 
-// Custom green icon for hospitals
 const hospitalIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
@@ -29,16 +43,14 @@ const hospitalIcon = new L.Icon({
   popupAnchor: [1, -34],
 });
 
-// Custom blue icon for the selected hospital
 const selectedHospitalIcon = new L.Icon({
   iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-blue.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
+  iconSize: [30, 48],
+  iconAnchor: [15, 48],
   popupAnchor: [1, -34],
 });
 
-// Helper: re-centers the map whenever the center prop changes
 function RecenterMap({ center }) {
   const map = useMap();
   useEffect(() => {
@@ -47,7 +59,6 @@ function RecenterMap({ center }) {
   return null;
 }
 
-// Helper: fetch hospitals near a lat/lng using the Overpass API
 async function fetchNearbyHospitals(lat, lng, radiusMeters = 5000) {
   const query = `
     [out:json][timeout:25];
@@ -74,10 +85,9 @@ async function fetchNearbyHospitals(lat, lng, radiusMeters = 5000) {
       phone: el.tags?.phone || el.tags?.['contact:phone'] || null,
       emergency: el.tags?.emergency || null,
     }))
-    .filter((h) => h.lat && h.lng); // drop any with missing coordinates
+    .filter((h) => h.lat && h.lng);
 }
 
-// Helper: fetch route from OSRM with alternatives and build an intersection graph for real Dijkstra pathfinding
 async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng, hospitalName = 'Hospital') {
   const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson&steps=true&alternatives=true`;
   const res = await fetch(url);
@@ -93,10 +103,8 @@ async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng, hospital
   const graph = { [startNode]: [], [endNode]: [] };
   const nodeNames = { [startNode]: 'Your Location', [endNode]: hospitalName };
 
-  // Helper to format coordinate keys so shared intersections between alternative routes merge
   const toKey = ([lng, lat]) => `loc_${lat.toFixed(4)}_${lng.toFixed(4)}`;
 
-  // Process all alternative routes returned by OSRM to construct a genuine multi-path network graph
   data.routes.forEach((route) => {
     const steps = route.legs?.[0]?.steps || [];
     if (steps.length === 0) return;
@@ -112,19 +120,16 @@ async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng, hospital
       if (!graph[nodeId]) graph[nodeId] = [];
       if (!nodeNames[nodeId]) nodeNames[nodeId] = streetName;
 
-      // Add edge from prevNode to nodeId with distance weight
       const existingEdge = graph[prevNode].find((e) => e.to === nodeId);
       if (!existingEdge) {
         graph[prevNode].push({ to: nodeId, weight: Math.round(step.distance) });
       } else if (step.distance < existingEdge.weight) {
-        // If an alternative route offers a shorter segment between same junctions, use shorter weight
         existingEdge.weight = Math.round(step.distance);
       }
 
       prevNode = nodeId;
     });
 
-    // Ensure connection to endNode
     if (prevNode !== endNode) {
       if (!graph[prevNode].some((e) => e.to === endNode)) {
         graph[prevNode].push({ to: endNode, weight: 0 });
@@ -132,16 +137,13 @@ async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng, hospital
     }
   });
 
-  // Run Dijkstra on the combined multi-route intersection network graph
   const { previous, distances } = dijkstra(graph, startNode);
   const rawPath = getPath(previous, endNode);
 
-  // Convert node IDs to friendly street/junction names (deduplicating adjacent identical names)
   const friendlyPath = rawPath
     .map((id) => nodeNames[id] || id)
     .filter((name, idx, arr) => idx === 0 || name !== arr[idx - 1]);
 
-  // Identify the best route matching Dijkstra's shortest distance
   let selectedRoute = data.routes[0];
   let minDiff = Infinity;
   const dijkstraDist = distances[endNode] || selectedRoute.distance;
@@ -154,7 +156,6 @@ async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng, hospital
     }
   });
 
-  // Convert GeoJSON coordinates [lng, lat] → Leaflet [lat, lng]
   const polylineCoords = selectedRoute.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
   return {
@@ -166,115 +167,6 @@ async function fetchRouteAndRunDijkstra(fromLat, fromLng, toLat, toLng, hospital
     alternativesEvaluated: data.routes.length,
   };
 }
-
-/* ── Inline styles (replaces Tailwind utility classes) ─────────── */
-const styles = {
-  fullPage: {
-    minHeight: 'calc(100vh - 70px)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centeredCard: {
-    background: 'var(--clr-bg-card)',
-    border: '1px solid var(--clr-border)',
-    borderRadius: 'var(--r-xl)',
-    padding: 'var(--sp-10)',
-    maxWidth: '440px',
-    textAlign: 'center',
-    boxShadow: 'var(--shadow-md)',
-  },
-  headerBar: {
-    background: 'var(--clr-bg-card)',
-    borderBottom: '1px solid var(--clr-border)',
-    padding: 'var(--sp-4) var(--sp-6)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  pageWrap: {
-    minHeight: 'calc(100vh - 70px)',
-    background: 'var(--clr-bg)',
-  },
-  columns: {
-    display: 'flex',
-    height: 'calc(100vh - 70px - 65px)',
-  },
-  sidebar: {
-    width: '320px',
-    flexShrink: 0,
-    background: 'var(--clr-bg-card)',
-    borderRight: '1px solid var(--clr-border)',
-    overflowY: 'auto',
-  },
-  hospitalItem: (isSelected) => ({
-    padding: 'var(--sp-4)',
-    borderBottom: '1px solid var(--clr-border)',
-    cursor: 'pointer',
-    transition: 'all var(--transition)',
-    background: isSelected ? 'var(--clr-primary-glow)' : 'transparent',
-    borderLeft: isSelected ? '4px solid var(--clr-primary)' : '4px solid transparent',
-  }),
-  hospitalName: {
-    fontWeight: 600,
-    color: 'var(--clr-text)',
-    fontSize: '0.88rem',
-  },
-  emergencyBadge: {
-    display: 'inline-block',
-    marginTop: '4px',
-    fontSize: '0.72rem',
-    background: 'rgba(255, 107, 107, 0.15)',
-    color: 'var(--clr-danger)',
-    padding: '2px 8px',
-    borderRadius: 'var(--r-full)',
-  },
-  phoneLine: {
-    fontSize: '0.75rem',
-    color: 'var(--clr-text-dim)',
-    marginTop: '4px',
-  },
-  clickHint: {
-    fontSize: '0.75rem',
-    color: 'var(--clr-primary)',
-    marginTop: '4px',
-  },
-  routeBar: {
-    background: 'var(--clr-bg-card)',
-    borderTop: '1px solid var(--clr-border)',
-    padding: 'var(--sp-4) var(--sp-6)',
-  },
-  routeGrid: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: 'var(--sp-8)',
-  },
-  routeLabel: {
-    fontSize: '0.7rem',
-    color: 'var(--clr-text-dim)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.06em',
-  },
-  routeValue: {
-    fontWeight: 700,
-    color: 'var(--clr-text)',
-  },
-  dijkstraValue: {
-    fontSize: '0.75rem',
-    color: 'var(--clr-text-muted)',
-    fontFamily: 'monospace',
-  },
-  spinner: {
-    width: '16px',
-    height: '16px',
-    border: '2px solid var(--clr-primary)',
-    borderTop: '2px solid transparent',
-    borderRadius: '50%',
-    animation: 'spin 0.8s linear infinite',
-    display: 'inline-block',
-  },
-};
 
 export default function NearbyHospitals() {
   const [location, setLocation] = useState(null);
@@ -288,12 +180,12 @@ export default function NearbyHospitals() {
   const [routeLoading, setRouteLoading] = useState(false);
   const [routeError, setRouteError] = useState(null);
 
-  // Step 1: get user's GPS location on mount
-  useEffect(() => {
+  const getCurrentGPS = () => {
     if (!navigator.geolocation) {
       setLocationError('Geolocation is not supported by your browser.');
       return;
     }
+    setLocationError(null);
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude });
@@ -301,26 +193,28 @@ export default function NearbyHospitals() {
       (err) => {
         setLocationError(
           err.code === 1
-            ? 'Location access denied. Please allow location access and refresh.'
-            : 'Unable to retrieve your location. Please try again.'
+            ? 'Location access denied. Please allow location access in your browser settings.'
+            : 'Unable to retrieve your location. Please check GPS settings.'
         );
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
+  };
+
+  useEffect(() => {
+    getCurrentGPS();
   }, []);
 
-  // Step 2: once we have location, fetch nearby hospitals
   useEffect(() => {
     if (!location) return;
     setHospitalsLoading(true);
     setHospitalsError(null);
     fetchNearbyHospitals(location.lat, location.lng)
       .then(setHospitals)
-      .catch(() => setHospitalsError('Failed to fetch nearby hospitals. Please try again.'))
+      .catch(() => setHospitalsError('Failed to fetch nearby hospitals.'))
       .finally(() => setHospitalsLoading(false));
   }, [location]);
 
-  // Step 3: when a hospital is clicked, fetch route and run Dijkstra
   const handleHospitalClick = async (hospital) => {
     setSelectedHospital(hospital);
     setRoute([]);
@@ -329,8 +223,10 @@ export default function NearbyHospitals() {
     setRouteLoading(true);
     try {
       const result = await fetchRouteAndRunDijkstra(
-        location.lat, location.lng,
-        hospital.lat, hospital.lng,
+        location.lat,
+        location.lng,
+        hospital.lat,
+        hospital.lng,
         hospital.name
       );
       setRoute(result.polylineCoords);
@@ -342,7 +238,7 @@ export default function NearbyHospitals() {
         alternativesEvaluated: result.alternativesEvaluated,
       });
     } catch {
-      setRouteError('Could not calculate route. The hospital may be unreachable by road.');
+      setRouteError('Could not calculate route for this hospital.');
     } finally {
       setRouteLoading(false);
     }
@@ -355,198 +251,256 @@ export default function NearbyHospitals() {
     setRouteError(null);
   };
 
-  // --- RENDER ---
-
   if (locationError) {
     return (
-      <div style={styles.fullPage}>
-        <div style={styles.centeredCard} className="animate-fade-up">
-          <span style={{ fontSize: '3.5rem' }}>📍</span>
-          <h2 style={{ marginTop: 'var(--sp-4)' }}>Location Required</h2>
-          <p style={{ marginTop: 'var(--sp-2)' }}>{locationError}</p>
+      <PublicLayout>
+        <div className="min-h-[70vh] flex items-center justify-center p-6">
+          <Card className="max-w-md p-8 text-center space-y-4">
+            <div className="w-14 h-14 mx-auto rounded-full bg-rose-100 dark:bg-rose-950/50 text-rose-500 flex items-center justify-center">
+              <AlertCircle className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">
+              Location Required
+            </h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+              {locationError}
+            </p>
+            <Button variant="primary" onClick={getCurrentGPS} icon={Compass}>
+              Retry GPS Location
+            </Button>
+          </Card>
         </div>
-      </div>
+      </PublicLayout>
     );
   }
 
   if (!location) {
     return (
-      <div style={styles.fullPage}>
-        <div style={{ textAlign: 'center' }} className="animate-fade-up">
-          <div style={{ fontSize: '3.5rem', marginBottom: 'var(--sp-4)', animation: 'spin 2s linear infinite' }}>🌐</div>
-          <p style={{ fontWeight: 500 }}>Detecting your location…</p>
+      <PublicLayout>
+        <div className="min-h-[70vh] flex flex-col items-center justify-center space-y-4">
+          <Loader2 className="w-10 h-10 text-teal-500 animate-spin" />
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+            Detecting your GPS location for emergency routing...
+          </p>
         </div>
-      </div>
+      </PublicLayout>
     );
   }
 
   return (
-    <div style={styles.pageWrap}>
-      {/* Header */}
-      <div style={styles.headerBar}>
-        <div>
-          <h1 style={{ fontSize: '1.5rem' }}>🏥 Nearby Hospitals</h1>
-          <p style={{ fontSize: '0.85rem', marginTop: '2px' }}>
-            Showing hospitals within 5 km of your location
-          </p>
-        </div>
-        {selectedHospital && (
-          <button onClick={clearRoute} className="btn btn-danger btn-sm">
-            ✕ Clear Route
-          </button>
-        )}
-      </div>
-
-      <div style={styles.columns}>
-        {/* Left panel — hospital list */}
-        <div style={styles.sidebar}>
-          {hospitalsLoading && (
-            <div style={{ padding: 'var(--sp-6)', textAlign: 'center', color: 'var(--clr-text-muted)' }}>
-              <div style={{ fontSize: '2rem', marginBottom: 'var(--sp-2)', animation: 'pulse-glow 1.5s infinite' }}>🔍</div>
-              <p style={{ fontSize: '0.85rem' }}>Searching for hospitals…</p>
+    <PublicLayout>
+      <div className="relative h-[calc(100vh-70px)] w-full flex flex-col md:flex-row overflow-hidden">
+        {/* Floating Side Panel listing hospitals */}
+        <aside className="w-full md:w-96 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl border-r border-slate-200 dark:border-slate-800 flex flex-col z-20 shadow-2xl h-1/2 md:h-full">
+          <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <Badge status="cancelled" className="bg-rose-500 text-white font-bold animate-pulse">
+                  SOS
+                </Badge>
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                  Nearby Emergency Hospitals
+                </h2>
+              </div>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                {hospitals.length} facilities within 5 km
+              </p>
             </div>
-          )}
 
-          {hospitalsError && (
-            <div className="alert alert-error" style={{ margin: 'var(--sp-4)' }}>
-              {hospitalsError}
-            </div>
-          )}
-
-          {!hospitalsLoading && !hospitalsError && hospitals.length === 0 && (
-            <div style={{ padding: 'var(--sp-6)', textAlign: 'center', color: 'var(--clr-text-muted)' }}>
-              <p style={{ fontSize: '2rem', marginBottom: 'var(--sp-2)' }}>🏥</p>
-              <p style={{ fontSize: '0.85rem' }}>No hospitals found within 5 km.</p>
-            </div>
-          )}
-
-          {hospitals.map((h) => (
-            <div
-              key={h.id}
-              onClick={() => handleHospitalClick(h)}
-              style={styles.hospitalItem(selectedHospital?.id === h.id)}
-              onMouseEnter={(e) => {
-                if (selectedHospital?.id !== h.id) e.currentTarget.style.background = 'var(--clr-surface)';
-              }}
-              onMouseLeave={(e) => {
-                if (selectedHospital?.id !== h.id) e.currentTarget.style.background = 'transparent';
-              }}
+            {/* Red Animated Locate Me Button */}
+            <button
+              type="button"
+              onClick={getCurrentGPS}
+              className="p-2 rounded-full bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/30 animate-pulse transition-transform active:scale-95"
+              title="Locate Me"
             >
-              <p style={styles.hospitalName}>{h.name}</p>
-              {h.emergency && (
-                <span style={styles.emergencyBadge}>
-                  Emergency: {h.emergency}
-                </span>
-              )}
-              {h.phone && (
-                <p style={styles.phoneLine}>📞 {h.phone}</p>
-              )}
-              <p style={styles.clickHint}>Click to show route →</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Right panel — map + route info */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-          {/* Map */}
-          <div style={{ flex: 1 }}>
-            <MapContainer
-              center={[location.lat, location.lng]}
-              zoom={14}
-              style={{ height: '100%', width: '100%' }}
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <RecenterMap center={[location.lat, location.lng]} />
-
-              {/* User's location */}
-              <Marker position={[location.lat, location.lng]} icon={userIcon}>
-                <Popup>
-                  <strong>📍 You are here</strong>
-                </Popup>
-              </Marker>
-
-              {/* Hospital markers */}
-              {hospitals.map((h) => (
-                <Marker
-                  key={h.id}
-                  position={[h.lat, h.lng]}
-                  icon={selectedHospital?.id === h.id ? selectedHospitalIcon : hospitalIcon}
-                  eventHandlers={{ click: () => handleHospitalClick(h) }}
-                >
-                  <Popup>
-                    <strong>{h.name}</strong>
-                    {h.phone && <p style={{ fontSize: '0.75rem', marginTop: '4px' }}>📞 {h.phone}</p>}
-                    <button
-                      onClick={() => handleHospitalClick(h)}
-                      style={{
-                        marginTop: '8px',
-                        fontSize: '0.75rem',
-                        color: 'var(--clr-accent)',
-                        textDecoration: 'underline',
-                        background: 'none',
-                        border: 'none',
-                        cursor: 'pointer',
-                        display: 'block',
-                      }}
-                    >
-                      Get directions
-                    </button>
-                  </Popup>
-                </Marker>
-              ))}
-
-              {/* Route polyline */}
-              {route.length > 0 && (
-                <Polyline positions={route} color="#00d4aa" weight={5} opacity={0.8} />
-              )}
-            </MapContainer>
+              <Compass className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* Route info bar */}
-          {(routeLoading || routeInfo || routeError) && (
-            <div style={styles.routeBar}>
-              {routeLoading && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--sp-2)', color: 'var(--clr-text-muted)', fontSize: '0.85rem' }}>
-                  <div style={styles.spinner} />
-                  Calculating shortest route using Dijkstra's algorithm…
-                </div>
-              )}
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60 p-2 space-y-1">
+            {hospitalsLoading ? (
+              <div className="p-6 text-center text-xs text-slate-400 space-y-2">
+                <Loader2 className="w-6 h-6 animate-spin mx-auto text-teal-500" />
+                <p>Searching OpenStreetMap Overpass API...</p>
+              </div>
+            ) : hospitalsError ? (
+              <div className="p-4 text-xs font-semibold text-rose-500 text-center">
+                {hospitalsError}
+              </div>
+            ) : hospitals.length === 0 ? (
+              <div className="p-6 text-center text-xs text-slate-400">
+                No hospitals found within 5 km radius.
+              </div>
+            ) : (
+              hospitals.map((h) => {
+                const isSelected = selectedHospital?.id === h.id;
+                return (
+                  <button
+                    key={h.id}
+                    type="button"
+                    onClick={() => handleHospitalClick(h)}
+                    className={`w-full p-3.5 rounded-xl text-left transition-all flex flex-col gap-1 border ${
+                      isSelected
+                        ? 'bg-teal-50 dark:bg-teal-950/40 border-teal-500 dark:border-teal-500 shadow-md'
+                        : 'border-transparent hover:bg-slate-100 dark:hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 line-clamp-1">
+                        {h.name}
+                      </h4>
+                      {h.emergency && (
+                        <Badge status="cancelled" className="text-[10px]">
+                          24/7 ER
+                        </Badge>
+                      )}
+                    </div>
+                    {h.phone && (
+                      <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                        <Phone className="w-3 h-3 text-teal-500" />
+                        <span>{h.phone}</span>
+                      </div>
+                    )}
+                    <span className="text-[10px] font-semibold text-teal-600 dark:text-teal-400 flex items-center gap-1 mt-1">
+                      <Navigation className="w-3 h-3" /> Get Shortest Dijkstra Route
+                    </span>
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </aside>
 
-              {routeError && (
-                <p style={{ color: 'var(--clr-danger)', fontSize: '0.85rem' }}>{routeError}</p>
-              )}
+        {/* Map Container */}
+        <div className="flex-1 relative h-1/2 md:h-full w-full">
+          <MapContainer
+            center={[location.lat, location.lng]}
+            zoom={14}
+            className="h-full w-full z-10"
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <RecenterMap center={[location.lat, location.lng]} />
 
-              {routeInfo && selectedHospital && (
-                <div style={styles.routeGrid}>
-                  <div>
-                    <p style={styles.routeLabel}>Destination</p>
-                    <p style={styles.routeValue}>{selectedHospital.name}</p>
+            {/* User Location */}
+            <Marker position={[location.lat, location.lng]} icon={userIcon}>
+              <Popup>
+                <div className="text-xs font-bold">📍 Your GPS Location</div>
+              </Popup>
+            </Marker>
+
+            {/* Hospital Markers */}
+            {hospitals.map((h) => (
+              <Marker
+                key={h.id}
+                position={[h.lat, h.lng]}
+                icon={selectedHospital?.id === h.id ? selectedHospitalIcon : hospitalIcon}
+                eventHandlers={{ click: () => handleHospitalClick(h) }}
+              >
+                <Popup>
+                  <div className="text-xs space-y-1">
+                    <div className="font-bold">{h.name}</div>
+                    {h.phone && <div>📞 {h.phone}</div>}
+                    <button
+                      type="button"
+                      onClick={() => handleHospitalClick(h)}
+                      className="text-teal-500 font-bold underline cursor-pointer"
+                    >
+                      Calculate Route
+                    </button>
                   </div>
-                  <div>
-                    <p style={styles.routeLabel}>Distance</p>
-                    <p style={styles.routeValue}>{routeInfo.distanceKm} km</p>
-                  </div>
-                  <div>
-                    <p style={styles.routeLabel}>Est. Drive Time</p>
-                    <p style={styles.routeValue}>{routeInfo.durationMin} min</p>
-                  </div>
-                  <div>
-                    <p style={styles.routeLabel}>
-                      Dijkstra Path {routeInfo.alternativesEvaluated > 1 ? `(${routeInfo.alternativesEvaluated} alternatives evaluated)` : ''}
-                    </p>
-                    <p style={styles.dijkstraValue}>
-                      {routeInfo.dijkstraPath.join(' → ')} ({routeInfo.dijkstraDistance} m)
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+                </Popup>
+              </Marker>
+            ))}
+
+            {/* Route Polyline */}
+            {route.length > 0 && (
+              <Polyline positions={route} color="#0d9488" weight={6} opacity={0.9} />
+            )}
+          </MapContainer>
+
+          {/* Bottom Floating Route Info Bar */}
+          <AnimatePresence>
+            {(routeLoading || routeInfo || routeError) && (
+              <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 30 }}
+                className="absolute bottom-6 left-4 right-4 md:left-6 md:right-6 z-30 max-w-2xl mx-auto"
+              >
+                <Card glass className="p-4 shadow-2xl border-teal-500/40 relative">
+                  <button
+                    type="button"
+                    onClick={clearRoute}
+                    className="absolute top-3 right-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+
+                  {routeLoading && (
+                    <div className="flex items-center gap-2 text-xs font-bold text-teal-600 dark:text-teal-400">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Computing Dijkstra shortest path intersection graph...</span>
+                    </div>
+                  )}
+
+                  {routeError && (
+                    <p className="text-xs font-bold text-rose-500">{routeError}</p>
+                  )}
+
+                  {routeInfo && selectedHospital && (
+                    <div className="space-y-3">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pr-6">
+                        <div>
+                          <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                            {selectedHospital.name}
+                          </h4>
+                          <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                            <span className="font-bold text-teal-600 dark:text-teal-400">
+                              {routeInfo.distanceKm} km
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 font-bold text-slate-800 dark:text-slate-200">
+                              <Clock className="w-3.5 h-3.5 text-amber-500" /> ~{routeInfo.durationMin} mins drive
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2">
+                          {selectedHospital.phone && (
+                            <a href={`tel:${selectedHospital.phone}`}>
+                              <Button size="sm" variant="primary" icon={Phone}>
+                                Call
+                              </Button>
+                            </a>
+                          )}
+                          <a
+                            href={`https://www.google.com/maps/dir/?api=1&destination=${selectedHospital.lat},${selectedHospital.lng}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <Button size="sm" variant="outline" icon={ExternalLink}>
+                              Google Maps
+                            </Button>
+                          </a>
+                        </div>
+                      </div>
+
+                      <div className="text-[11px] font-mono bg-slate-100 dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 line-clamp-2">
+                        <strong className="text-teal-600 dark:text-teal-400">Dijkstra Path:</strong>{' '}
+                        {routeInfo.dijkstraPath.join(' → ')} ({routeInfo.dijkstraDistance} m)
+                      </div>
+                    </div>
+                  )}
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
-    </div>
+    </PublicLayout>
   );
 }

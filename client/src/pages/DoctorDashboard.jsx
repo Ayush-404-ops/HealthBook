@@ -1,23 +1,50 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import Spinner from '../components/Spinner';
+import { DashboardLayout } from '../components/layout/DashboardLayout';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import { Textarea } from '../components/ui/Textarea';
+import { Badge } from '../components/ui/Badge';
+import { Avatar } from '../components/ui/Avatar';
+import { Skeleton } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Tooltip } from '../components/ui/Tooltip';
+import { Pagination } from '../components/ui/Pagination';
+import { Tabs, TabContent } from '../components/ui/Tabs';
 import toast from 'react-hot-toast';
 import {
-  FiUser,
-  FiClock,
-  FiCalendar,
-  FiDollarSign,
-  FiAward,
-  FiSave,
-  FiPlus,
-  FiTrash2,
-  FiCheckCircle,
-  FiAlertCircle,
-  FiList,
-  FiCheck,
-  FiXCircle,
-} from 'react-icons/fi';
+  User,
+  Clock,
+  Calendar,
+  IndianRupee,
+  Award,
+  Save,
+  Plus,
+  Trash2,
+  CheckCircle,
+  AlertCircle,
+  List,
+  Check,
+  XCircle,
+  Copy,
+  TrendingUp,
+  Search,
+  Filter,
+} from 'lucide-react';
+import {
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip as RechartsTooltip,
+} from 'recharts';
+import { motion } from 'framer-motion';
 
 const WEEKDAYS = [
   'Monday',
@@ -52,7 +79,7 @@ const SPECIALTIES = [
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'appointments'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'queue' | 'profile' | 'availability'
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -66,9 +93,17 @@ const DoctorDashboard = () => {
     isApproved: false,
   });
 
-  // Doctor's Appointments State
+  // Queue state
   const [appointments, setAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
+  const [queueSearch, setQueueSearch] = useState('');
+  const [queueStatusFilter, setQueueStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 5;
+
+  // Confirm dialog state
+  const [cancelDialogAppt, setCancelDialogAppt] = useState(null);
+  const [updatingId, setUpdatingId] = useState(null);
 
   const fetchProfile = useCallback(async () => {
     try {
@@ -104,6 +139,7 @@ const DoctorDashboard = () => {
   }, [fetchProfile, fetchAppointments]);
 
   const handleUpdateStatus = async (appointmentId, newStatus) => {
+    setUpdatingId(appointmentId);
     try {
       const res = await api.patch(`/appointments/${appointmentId}/status`, {
         status: newStatus,
@@ -114,6 +150,8 @@ const DoctorDashboard = () => {
       }
     } catch (err) {
       toast.error(err.message || 'Failed to update status');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -156,14 +194,24 @@ const DoctorDashboard = () => {
     }));
   };
 
+  const handleCopyToAllDays = (sourceRule) => {
+    const allDaysRules = WEEKDAYS.map((day) => ({
+      day,
+      startTime: sourceRule.startTime,
+      endTime: sourceRule.endTime,
+    }));
+    setProfile((prev) => ({ ...prev, availability: allDaysRules }));
+    toast.success(`Copied schedule (${sourceRule.startTime} - ${sourceRule.endTime}) to all 7 days!`);
+  };
+
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setSaving(true);
     try {
       const res = await api.put('/doctors/profile', profile);
       if (res.data?.success) {
         setProfile(res.data.data);
-        toast.success('Doctor profile and schedule updated!');
+        toast.success('Profile and schedule saved successfully!');
       }
     } catch (err) {
       toast.error(err.message || 'Failed to update profile');
@@ -172,475 +220,535 @@ const DoctorDashboard = () => {
     }
   };
 
+  // Derived statistics & charts
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayCount = appointments.filter((a) => a.date === todayStr).length;
+  const pendingCount = appointments.filter((a) => a.status === 'pending').length;
+  const completedCount = appointments.filter((a) => a.status === 'completed').length;
+  const totalEarnings = appointments
+    .filter((a) => a.payment?.status === 'paid')
+    .reduce((sum, a) => sum + (a.payment?.amount || profile.fee || 0), 0);
+
+  // Group appointments by day for Recharts
+  const chartData = WEEKDAYS.map((day) => {
+    const count = appointments.filter((a) => {
+      if (!a.date) return false;
+      const d = new Date(a.date);
+      const dayName = WEEKDAYS[d.getDay() === 0 ? 6 : d.getDay() - 1];
+      return dayName === day;
+    }).length;
+    return { day: day.slice(0, 3), appointments: count };
+  });
+
+  // Filtered queue table
+  const filteredQueue = appointments.filter((a) => {
+    const patientName = a.patient?.name || '';
+    const matchesSearch = patientName.toLowerCase().includes(queueSearch.toLowerCase());
+    const matchesStatus =
+      queueStatusFilter === 'all' || a.status === queueStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
+  const totalPages = Math.ceil(filteredQueue.length / pageSize) || 1;
+  const paginatedQueue = filteredQueue.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
   if (loading) {
-    return <Spinner fullPage message="Loading doctor dashboard..." />;
+    return (
+      <DashboardLayout title="Doctor Dashboard">
+        <div className="space-y-4">
+          <Skeleton className="h-32 rounded-2xl" />
+          <div className="grid grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} className="h-24 rounded-2xl" />
+            ))}
+          </div>
+        </div>
+      </DashboardLayout>
+    );
   }
 
   return (
-    <div className="page">
-      <div className="container">
-        {/* Dashboard Header */}
-        <div className="dashboard-header animate-fade-up">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
-            }}
-          >
-            <div>
-              <h1>
-                Doctor Workspace — <span className="text-gradient">Dr. {user?.name}</span>
-              </h1>
-              <p>Manage your medical profile, weekly schedule, and patient appointments.</p>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span
-                className={`badge ${
-                  profile.isApproved ? 'badge-success' : 'badge-warning'
-                }`}
-                style={{ padding: '8px 16px', fontSize: '0.85rem' }}
-              >
-                {profile.isApproved ? (
-                  <>
-                    <FiCheckCircle style={{ marginRight: '4px' }} /> Approved Practitioner
-                  </>
-                ) : (
-                  <>
-                    <FiAlertCircle style={{ marginRight: '4px' }} /> Approval Pending (Admin)
-                  </>
-                )}
-              </span>
-            </div>
+    <DashboardLayout
+      title={`Doctor Workspace — Dr. ${user?.name}`}
+      subtitle="Manage your profile, availability grid, and patient consultation queue."
+    >
+      {/* Pending Approval Banner */}
+      {!profile.isApproved && (
+        <Card className="p-4 bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-300 mb-6 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" />
+          <div className="text-xs">
+            <h4 className="font-bold">Account Verification Pending (Admin Review)</h4>
+            <p className="mt-0.5">
+              Set up your profile details and working hours below. Once an admin approves your profile, your slots will go live for patient booking.
+            </p>
           </div>
-        </div>
+        </Card>
+      )}
 
-        {/* Tab Selection */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '12px',
-            marginBottom: '24px',
-            borderBottom: '1px solid var(--clr-border)',
-            paddingBottom: '12px',
-          }}
-        >
-          <button
-            className={`btn ${activeTab === 'profile' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('profile')}
-          >
-            <FiUser /> Profile & Working Hours
-          </button>
-          <button
-            className={`btn ${activeTab === 'appointments' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('appointments')}
-          >
-            <FiList /> Patient Consultations ({appointments.length})
-          </button>
-        </div>
+      {/* Tabs */}
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        tabs={[
+          { value: 'overview', label: 'Overview & Stats', icon: TrendingUp },
+          { value: 'queue', label: `Consultation Queue (${appointments.length})`, icon: List, badge: pendingCount },
+          { value: 'profile', label: 'Profile Editor & Preview', icon: User },
+          { value: 'availability', label: `Working Schedule (${profile.availability?.length || 0} Days)`, icon: Clock },
+        ]}
+      >
+        {/* TAB 1: Overview & Stats */}
+        <TabContent value="overview">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <Card className="p-5 flex items-center gap-4 bg-teal-500/5 border-teal-200 dark:border-teal-800/60">
+              <div className="p-3.5 rounded-2xl bg-teal-500 text-white shadow-md shadow-teal-500/20">
+                <Calendar className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{todayCount}</div>
+                <div className="text-xs font-semibold text-teal-700 dark:text-teal-300">Today&apos;s Appointments</div>
+              </div>
+            </Card>
 
-        {!profile.isApproved && (
-          <div className="alert alert-error animate-fade-up" style={{ marginBottom: '24px' }}>
-            <FiAlertCircle size={20} />
-            <div>
-              <strong>Account Pending Admin Verification:</strong> Update your profile below. Once an administrator approves your account, your schedule becomes live.
-            </div>
+            <Card className="p-5 flex items-center gap-4 bg-amber-500/5 border-amber-200 dark:border-amber-800/60">
+              <div className="p-3.5 rounded-2xl bg-amber-500 text-white shadow-md shadow-amber-500/20">
+                <Clock className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{pendingCount}</div>
+                <div className="text-xs font-semibold text-amber-700 dark:text-amber-300">Pending Requests</div>
+              </div>
+            </Card>
+
+            <Card className="p-5 flex items-center gap-4 bg-blue-500/5 border-blue-200 dark:border-blue-800/60">
+              <div className="p-3.5 rounded-2xl bg-blue-500 text-white shadow-md shadow-blue-500/20">
+                <CheckCircle className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{completedCount}</div>
+                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">Completed Visits</div>
+              </div>
+            </Card>
+
+            <Card className="p-5 flex items-center gap-4 bg-emerald-500/5 border-emerald-200 dark:border-emerald-800/60">
+              <div className="p-3.5 rounded-2xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20">
+                <IndianRupee className="w-6 h-6" />
+              </div>
+              <div>
+                <div className="text-2xl font-black text-slate-900 dark:text-slate-100">₹{totalEarnings}</div>
+                <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Total Revenue</div>
+              </div>
+            </Card>
           </div>
-        )}
 
-        {/* TAB 1: Profile Editor */}
-        {activeTab === 'profile' && (
-          <>
-            {/* Stats Grid */}
-            <div className="stats-grid animate-fade-up">
-              <div className="stat-card">
-                <div className="stat-card-icon teal">
-                  <FiAward color="var(--clr-primary)" />
-                </div>
-                <div className="stat-card-value">{profile.experienceYears || 0} Yrs</div>
-                <div className="stat-card-label">Experience</div>
-              </div>
+          {/* Recharts Appointments Weekly Chart */}
+          <Card className="p-6">
+            <CardHeader className="p-0 pb-4">
+              <CardTitle>Consultations per Day</CardTitle>
+              <CardDescription>Overview of patient bookings distribution across weekdays</CardDescription>
+            </CardHeader>
+            <div className="h-64 w-full pt-4">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartData}>
+                  <XAxis dataKey="day" stroke="#94a3b8" fontSize={12} />
+                  <YAxis stroke="#94a3b8" fontSize={12} />
+                  <RechartsTooltip
+                    contentStyle={{
+                      backgroundColor: '#0f172a',
+                      borderColor: '#1e293b',
+                      borderRadius: '12px',
+                      color: '#f8fafc',
+                    }}
+                  />
+                  <Bar dataKey="appointments" fill="#0d9488" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </TabContent>
 
-              <div className="stat-card">
-                <div className="stat-card-icon gold">
-                  <FiDollarSign color="var(--clr-warning)" />
-                </div>
-                <div className="stat-card-value">₹{profile.fee || 0}</div>
-                <div className="stat-card-label">Consultation Fee</div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-card-icon blue">
-                  <FiClock color="var(--clr-accent)" />
-                </div>
-                <div className="stat-card-value">{profile.slotDurationMinutes || 30}m</div>
-                <div className="stat-card-label">Slot Duration</div>
-              </div>
-
-              <div className="stat-card">
-                <div className="stat-card-icon teal">
-                  <FiCalendar color="var(--clr-primary)" />
-                </div>
-                <div className="stat-card-value">{profile.availability?.length || 0} Days</div>
-                <div className="stat-card-label">Active Days</div>
+        {/* TAB 2: Consultation Queue Table */}
+        <TabContent value="queue">
+          <Card className="p-5 mb-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3 w-full sm:w-auto flex-1">
+                <Input
+                  placeholder="Search patient name..."
+                  icon={Search}
+                  value={queueSearch}
+                  onChange={(e) => {
+                    setQueueSearch(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                />
+                <Select
+                  value={queueStatusFilter}
+                  onChange={(e) => {
+                    setQueueStatusFilter(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </Select>
               </div>
             </div>
+          </Card>
 
-            {/* Form */}
-            <form onSubmit={handleSubmit}>
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-                  gap: '24px',
-                  marginBottom: '32px',
-                }}
-              >
-                {/* Clinical Info */}
-                <div className="card animate-fade-up">
-                  <h3 style={{ marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <FiUser color="var(--clr-primary)" /> Clinical Details
-                  </h3>
+          {loadingAppointments ? (
+            <div className="space-y-3">
+              {[...Array(5)].map((_, i) => (
+                <Skeleton key={i} className="h-14 rounded-xl" />
+              ))}
+            </div>
+          ) : filteredQueue.length === 0 ? (
+            <EmptyState
+              icon={List}
+              title="No Patient Appointments"
+              description="No consultation requests match your filter criteria."
+            />
+          ) : (
+            <div className="space-y-4">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Patient</TableHead>
+                    <TableHead>Date & Time</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Payment</TableHead>
+                    <TableHead>Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedQueue.map((appt) => {
+                    const isPaid = appt.payment?.status === 'paid';
+                    return (
+                      <TableRow key={appt._id}>
+                        <TableCell>
+                          <div className="flex items-center gap-3">
+                            <Avatar size="sm" fallback={appt.patient?.name} />
+                            <div>
+                              <div className="font-bold text-slate-900 dark:text-slate-100">
+                                {appt.patient?.name || 'Patient'}
+                              </div>
+                              <div className="text-[11px] text-slate-400">
+                                {appt.patient?.email} • {appt.patient?.phone || 'No phone'}
+                              </div>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                            {appt.date}
+                          </div>
+                          <div className="text-[11px] text-slate-400">{appt.startTime}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge status={appt.status} />
+                        </TableCell>
+                        <TableCell>
+                          <Badge status={appt.payment?.status || 'unpaid'} />
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            {appt.status === 'pending' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                loading={updatingId === appt._id}
+                                onClick={() => handleUpdateStatus(appt._id, 'confirmed')}
+                                icon={Check}
+                              >
+                                Confirm
+                              </Button>
+                            )}
 
-                  <div className="input-group" style={{ marginBottom: '16px' }}>
-                    <label htmlFor="specialty">Medical Specialty *</label>
-                    <select
-                      id="specialty"
-                      name="specialty"
-                      className="input"
-                      value={profile.specialty}
+                            {appt.status === 'confirmed' && (
+                              <Tooltip content={!isPaid ? 'Consultation must be paid before marking completed' : ''}>
+                                <div>
+                                  <Button
+                                    size="sm"
+                                    variant="primary"
+                                    disabled={!isPaid}
+                                    loading={updatingId === appt._id}
+                                    onClick={() => handleUpdateStatus(appt._id, 'completed')}
+                                    icon={CheckCircle}
+                                  >
+                                    Complete
+                                  </Button>
+                                </div>
+                              </Tooltip>
+                            )}
+
+                            {['pending', 'confirmed'].includes(appt.status) && (
+                              <Button
+                                size="sm"
+                                variant="danger"
+                                onClick={() => setCancelDialogAppt(appt)}
+                                icon={XCircle}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+              />
+            </div>
+          )}
+        </TabContent>
+
+        {/* TAB 3: Profile Editor & Live Preview Card */}
+        <TabContent value="profile">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Left 2 Cols: Form */}
+            <div className="lg:col-span-2 space-y-6">
+              <Card className="p-6">
+                <CardHeader className="p-0 pb-4">
+                  <CardTitle>Clinical Profile Details</CardTitle>
+                  <CardDescription>Update your public doctor directory information</CardDescription>
+                </CardHeader>
+
+                <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                  <Select
+                    label="Medical Specialty *"
+                    name="specialty"
+                    value={profile.specialty}
+                    onChange={handleProfileChange}
+                    required
+                  >
+                    <option value="">Select Specialty</option>
+                    {SPECIALTIES.map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </Select>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <Input
+                      label="Consultation Fee (₹) *"
+                      name="fee"
+                      type="number"
+                      min="0"
+                      step="50"
+                      placeholder="500"
+                      icon={IndianRupee}
+                      value={profile.fee}
                       onChange={handleProfileChange}
                       required
-                    >
-                      <option value="">Select Specialty</option>
-                      {SPECIALTIES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                    />
 
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '16px',
-                      marginBottom: '16px',
-                    }}
-                  >
-                    <div className="input-group">
-                      <label htmlFor="fee">Fee (₹) *</label>
-                      <input
-                        id="fee"
-                        name="fee"
-                        type="number"
-                        min="0"
-                        step="50"
-                        className="input"
-                        placeholder="500"
-                        value={profile.fee}
-                        onChange={handleProfileChange}
-                        required
-                      />
-                    </div>
+                    <Input
+                      label="Experience (Years)"
+                      name="experienceYears"
+                      type="number"
+                      min="0"
+                      placeholder="5"
+                      icon={Award}
+                      value={profile.experienceYears}
+                      onChange={handleProfileChange}
+                    />
 
-                    <div className="input-group">
-                      <label htmlFor="experienceYears">Experience (Yrs)</label>
-                      <input
-                        id="experienceYears"
-                        name="experienceYears"
-                        type="number"
-                        min="0"
-                        className="input"
-                        placeholder="5"
-                        value={profile.experienceYears}
-                        onChange={handleProfileChange}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="input-group" style={{ marginBottom: '16px' }}>
-                    <label htmlFor="slotDurationMinutes">Slot Duration (Minutes)</label>
-                    <select
-                      id="slotDurationMinutes"
+                    <Select
+                      label="Slot Duration (Minutes)"
                       name="slotDurationMinutes"
-                      className="input"
                       value={profile.slotDurationMinutes}
                       onChange={handleProfileChange}
                     >
-                      <option value={15}>15 Minutes</option>
-                      <option value={20}>20 Minutes</option>
-                      <option value={30}>30 Minutes</option>
-                      <option value={45}>45 Minutes</option>
-                      <option value={60}>60 Minutes</option>
-                    </select>
+                      <option value={15}>15 Mins</option>
+                      <option value={20}>20 Mins</option>
+                      <option value={30}>30 Mins</option>
+                      <option value={45}>45 Mins</option>
+                      <option value={60}>60 Mins</option>
+                    </Select>
                   </div>
 
-                  <div className="input-group">
-                    <label htmlFor="bio">Professional Bio</label>
-                    <textarea
-                      id="bio"
-                      name="bio"
-                      rows={4}
-                      className="input"
-                      placeholder="Qualifications, experience..."
-                      value={profile.bio}
-                      onChange={handleProfileChange}
-                    />
+                  <Textarea
+                    label="Professional Bio"
+                    name="bio"
+                    rows={4}
+                    placeholder="Provide your background, credentials, and medical philosophy..."
+                    value={profile.bio}
+                    onChange={handleProfileChange}
+                  />
+
+                  <div className="flex justify-end pt-2">
+                    <Button type="submit" variant="primary" loading={saving} icon={Save}>
+                      Save Profile Updates
+                    </Button>
                   </div>
-                </div>
+                </form>
+              </Card>
+            </div>
 
-                {/* Schedule Rules */}
-                <div className="card animate-fade-up">
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      marginBottom: '20px',
-                    }}
-                  >
-                    <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <FiCalendar color="var(--clr-accent)" /> Weekly Working Hours
-                    </h3>
-                    <button
-                      type="button"
-                      onClick={handleAddAvailability}
-                      className="btn btn-outline btn-sm"
-                      disabled={profile.availability?.length >= 7}
-                    >
-                      <FiPlus /> Add Day
-                    </button>
-                  </div>
-
-                  {profile.availability?.length === 0 ? (
-                    <div className="empty-state" style={{ padding: '32px 16px' }}>
-                      <div className="empty-state-icon">🗓️</div>
-                      <p>No availability rules set yet.</p>
-                      <button
-                        type="button"
-                        onClick={handleAddAvailability}
-                        className="btn btn-ghost btn-sm"
-                        style={{ marginTop: '12px' }}
-                      >
-                        Add Working Hours
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {profile.availability.map((rule, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1.2fr 1fr 1fr auto',
-                            gap: '8px',
-                            alignItems: 'center',
-                            background: 'var(--clr-surface)',
-                            padding: '12px',
-                            borderRadius: 'var(--r-md)',
-                            border: '1px solid var(--clr-border)',
-                          }}
-                        >
-                          <select
-                            className="input"
-                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                            value={rule.day}
-                            onChange={(e) =>
-                              handleAvailabilityChange(idx, 'day', e.target.value)
-                            }
-                          >
-                            {WEEKDAYS.map((d) => (
-                              <option key={d} value={d}>
-                                {d}
-                              </option>
-                            ))}
-                          </select>
-
-                          <input
-                            type="time"
-                            className="input"
-                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                            value={rule.startTime}
-                            onChange={(e) =>
-                              handleAvailabilityChange(idx, 'startTime', e.target.value)
-                            }
-                          />
-
-                          <input
-                            type="time"
-                            className="input"
-                            style={{ padding: '0.4rem 0.6rem', fontSize: '0.85rem' }}
-                            value={rule.endTime}
-                            onChange={(e) =>
-                              handleAvailabilityChange(idx, 'endTime', e.target.value)
-                            }
-                          />
-
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveAvailability(idx)}
-                            className="btn btn-danger btn-sm"
-                            style={{ padding: '0.4rem 0.6rem' }}
-                            title="Remove Day"
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button type="submit" className="btn btn-primary btn-lg" disabled={saving}>
-                  {saving ? 'Saving...' : <><FiSave /> Save Profile & Rules</>}
-                </button>
-              </div>
-            </form>
-          </>
-        )}
-
-        {/* TAB 2: Patient Consultations */}
-        {activeTab === 'appointments' && (
-          <div>
-            {loadingAppointments ? (
-              <Spinner message="Fetching patient appointments..." />
-            ) : appointments.length === 0 ? (
-              <div className="card empty-state animate-fade-up">
-                <div className="empty-state-icon">📋</div>
-                <h3>No Booked Appointments</h3>
-                <p>When patients schedule consultation slots with you, they will appear here.</p>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {appointments.map((appt) => {
-                  const statusClass =
-                    appt.status === 'confirmed'
-                      ? 'badge-success'
-                      : appt.status === 'completed'
-                      ? 'badge-info'
-                      : appt.status === 'cancelled'
-                      ? 'badge-danger'
-                      : 'badge-warning';
-
-                  return (
-                    <div
-                      key={appt._id}
-                      className="card animate-fade-up"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '16px',
-                      }}
-                    >
+            {/* Right Col: Live Preview Card */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+                <User className="w-4 h-4 text-teal-500" /> Patient Directory Card Preview
+              </h3>
+              <Card className="p-6 border-teal-500/40 shadow-xl relative overflow-hidden">
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <Avatar size="lg" fallback={user?.name} />
                       <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                          <h3 style={{ fontSize: '1.2rem' }}>
-                            Patient: {appt.patient?.name || 'Anonymous'}
-                          </h3>
-                          <span className={`badge ${statusClass}`}>
-                            {appt.status?.toUpperCase()}
-                          </span>
-                          <span
-                            className={`badge ${
-                              appt.payment?.status === 'paid'
-                                ? 'badge-success'
-                                : appt.payment?.status === 'refunded'
-                                ? 'badge-secondary'
-                                : 'badge-warning'
-                            }`}
-                          >
-                            {appt.payment?.status === 'paid'
-                              ? 'PAID'
-                              : appt.payment?.status === 'refunded'
-                              ? 'REFUNDED'
-                              : 'UNPAID'}
-                          </span>
-                        </div>
-
-                        <p style={{ fontSize: '0.88rem', color: 'var(--clr-text-muted)', marginBottom: '8px' }}>
-                          Email: {appt.patient?.email || 'N/A'} | Phone: {appt.patient?.phone || 'N/A'}
-                        </p>
-
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '20px',
-                            fontSize: '0.88rem',
-                            color: 'var(--clr-text-muted)',
-                          }}
-                        >
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <FiCalendar color="var(--clr-primary)" /> Date: {appt.date}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <FiClock color="var(--clr-accent)" /> Time: {appt.startTime}
-                          </span>
-                        </div>
-
-                        {appt.notes && (
-                          <p
-                            style={{
-                              marginTop: '8px',
-                              fontSize: '0.85rem',
-                              fontStyle: 'italic',
-                              color: 'var(--clr-text-dim)',
-                            }}
-                          >
-                            Patient Note: "{appt.notes}"
-                          </p>
-                        )}
-                      </div>
-
-                      {/* Status Action Buttons */}
-                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                        {appt.status === 'pending' && (
-                          <button
-                            type="button"
-                            className="btn btn-outline btn-sm"
-                            onClick={() => handleUpdateStatus(appt._id, 'confirmed')}
-                          >
-                            <FiCheck /> Confirm Slot
-                          </button>
-                        )}
-
-                        {appt.status === 'confirmed' && appt.payment?.status === 'paid' && (
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleUpdateStatus(appt._id, 'completed')}
-                          >
-                            <FiCheckCircle /> Mark Completed
-                          </button>
-                        )}
-
-                        {['pending', 'confirmed'].includes(appt.status) && (
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleUpdateStatus(appt._id, 'cancelled')}
-                          >
-                            <FiXCircle /> Cancel
-                          </button>
-                        )}
+                        <h4 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                          Dr. {user?.name || 'Your Name'}
+                        </h4>
+                        <Badge status="confirmed" className="mt-1">
+                          {profile.specialty || 'General Practitioner'}
+                        </Badge>
                       </div>
                     </div>
-                  );
-                })}
+                    <div className="text-right">
+                      <div className="text-lg font-black text-teal-600 dark:text-teal-400">
+                        ₹{profile.fee || 0}
+                      </div>
+                      <span className="text-[10px] text-slate-400">per consult</span>
+                    </div>
+                  </div>
+
+                  <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-3">
+                    {profile.bio || 'No bio provided yet. Add your professional qualifications to showcase your practice.'}
+                  </p>
+
+                  <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 border-t border-slate-100 dark:border-slate-800 pt-3">
+                    <span>{profile.experienceYears || 0} Yrs Exp.</span>
+                    <span>•</span>
+                    <span>{profile.slotDurationMinutes || 30}m Slot Duration</span>
+                  </div>
+
+                  <Button variant="primary" className="w-full" disabled>
+                    Book Consultation (Preview)
+                  </Button>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </TabContent>
+
+        {/* TAB 4: Weekly Availability Grid with Copy-To-All-Days */}
+        <TabContent value="availability">
+          <Card className="p-6">
+            <CardHeader className="p-0 pb-4 flex flex-row items-center justify-between">
+              <div>
+                <CardTitle>Weekly Working Hours & Slots Grid</CardTitle>
+                <CardDescription>Configure which days and times you accept consultation appointments</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAddAvailability}
+                disabled={profile.availability?.length >= 7}
+                icon={Plus}
+              >
+                Add Working Day
+              </Button>
+            </CardHeader>
+
+            {profile.availability?.length === 0 ? (
+              <EmptyState
+                icon={Clock}
+                title="No Active Availability Rules"
+                description="Click below to add your first day of consultations."
+                actionLabel="Add Day"
+                onAction={handleAddAvailability}
+              />
+            ) : (
+              <div className="space-y-3 pt-2">
+                {profile.availability.map((rule, idx) => (
+                  <div
+                    key={idx}
+                    className="flex flex-col sm:flex-row items-center gap-3 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700"
+                  >
+                    <Select
+                      value={rule.day}
+                      onChange={(e) => handleAvailabilityChange(idx, 'day', e.target.value)}
+                      className="sm:w-40"
+                    >
+                      {WEEKDAYS.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </Select>
+
+                    <div className="flex items-center gap-2 w-full sm:w-auto">
+                      <Input
+                        type="time"
+                        value={rule.startTime}
+                        onChange={(e) => handleAvailabilityChange(idx, 'startTime', e.target.value)}
+                      />
+                      <span className="text-xs text-slate-400">to</span>
+                      <Input
+                        type="time"
+                        value={rule.endTime}
+                        onChange={(e) => handleAvailabilityChange(idx, 'endTime', e.target.value)}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2 ml-auto">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleCopyToAllDays(rule)}
+                        icon={Copy}
+                      >
+                        Copy to All Days
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleRemoveAvailability(idx)}
+                        icon={Trash2}
+                      />
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex justify-end pt-4 border-t border-slate-100 dark:border-slate-800">
+                  <Button variant="primary" loading={saving} onClick={handleSubmit} icon={Save}>
+                    Save Schedule Rules
+                  </Button>
+                </div>
               </div>
             )}
-          </div>
-        )}
-      </div>
-    </div>
+          </Card>
+        </TabContent>
+      </Tabs>
+
+      {/* Confirm Cancellation Dialog */}
+      <ConfirmDialog
+        isOpen={!!cancelDialogAppt}
+        onClose={() => setCancelDialogAppt(null)}
+        onConfirm={() => {
+          if (cancelDialogAppt) {
+            handleUpdateStatus(cancelDialogAppt._id, 'cancelled');
+            setCancelDialogAppt(null);
+          }
+        }}
+        title="Cancel Patient Appointment?"
+        description="Are you sure you want to cancel this patient appointment slot?"
+        confirmLabel="Cancel Appointment"
+      />
+    </DashboardLayout>
   );
 };
 

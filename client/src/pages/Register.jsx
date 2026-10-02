@@ -1,8 +1,26 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { FiHeart, FiArrowRight } from 'react-icons/fi';
 import { getRoleDashboardPath } from '../utils/roleUtils';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import { Button } from '../components/ui/Button';
+import { ThemeToggle } from '../components/ui/ThemeToggle';
+import {
+  HeartPulse,
+  Eye,
+  EyeOff,
+  Mail,
+  Lock,
+  User,
+  Phone,
+  ArrowRight,
+  ShieldCheck,
+  Activity,
+  Award,
+  IndianRupee,
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 const Register = () => {
@@ -16,26 +34,50 @@ const Register = () => {
     fee: '',
     experienceYears: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const { register } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (errors[e.target.name]) {
+      setErrors({ ...errors, [e.target.name]: null });
+    }
+  };
+
+  const getPasswordStrength = (pass) => {
+    if (!pass) return { label: '', score: 0, color: 'bg-slate-200 dark:bg-slate-800' };
+    if (pass.length < 6) return { label: 'Weak', score: 33, color: 'bg-rose-500' };
+    if (pass.length < 10 || !/\d/.test(pass))
+      return { label: 'Medium', score: 66, color: 'bg-amber-500' };
+    return { label: 'Strong', score: 100, color: 'bg-emerald-500' };
+  };
+
+  const strength = getPasswordStrength(formData.password);
+
+  const validate = () => {
+    const errs = {};
+    if (!formData.name.trim()) errs.name = 'Full name is required';
+    if (!formData.email.trim()) errs.email = 'Email address is required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Valid email is required';
+
+    if (!formData.password) errs.password = 'Password is required';
+    else if (formData.password.length < 6) errs.password = 'Minimum 6 characters required';
+
+    if (role === 'doctor') {
+      if (!formData.specialty) errs.specialty = 'Specialty is required for doctors';
+    }
+
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.email || !formData.password) {
-      toast.error('Please fill in all required fields');
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      toast.error('Password must be at least 6 characters');
-      return;
-    }
+    if (!validate()) return;
 
     setLoading(true);
     try {
@@ -62,172 +104,261 @@ const Register = () => {
     }
   };
 
+  const specialtyOptions = [
+    { value: '', label: 'Select Specialty' },
+    { value: 'General Physician', label: 'General Physician' },
+    { value: 'Cardiologist', label: 'Cardiologist' },
+    { value: 'Dermatologist', label: 'Dermatologist' },
+    { value: 'Neurologist', label: 'Neurologist' },
+    { value: 'Orthopedist', label: 'Orthopedist' },
+    { value: 'Pediatrician', label: 'Pediatrician' },
+    { value: 'Psychiatrist', label: 'Psychiatrist' },
+    { value: 'Gastroenterologist', label: 'Gastroenterologist' },
+    { value: 'ENT Specialist', label: 'ENT Specialist' },
+    { value: 'Dentist', label: 'Dentist' },
+  ];
+
   return (
-    <div className="auth-bg">
-      <div className="auth-card" style={{ maxWidth: '480px' }}>
-        <div className="auth-logo">
-          <div className="auth-logo-icon">
-            <FiHeart color="#080d1a" />
+    <div className="min-h-screen flex bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 transition-colors">
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
+
+      {/* Left Branding */}
+      <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-teal-900 via-slate-900 to-blue-950 p-12 flex-col justify-between overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(20,184,166,0.15),transparent_60%)] pointer-events-none" />
+
+        <Link to="/" className="flex items-center gap-3 z-10">
+          <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center text-white shadow-lg shadow-teal-500/30">
+            <HeartPulse className="w-6 h-6 animate-pulse" />
           </div>
-          <div>
-            <h2 className="auth-logo-text">Health<span className="text-gradient">Book</span></h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--clr-text-muted)' }}>Create your account to get started</p>
+          <span className="text-2xl font-black tracking-tight text-white">
+            Health<span className="text-teal-400">Book</span>
+          </span>
+        </Link>
+
+        <div className="relative z-10 max-w-lg space-y-6">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+          >
+            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-teal-500/20 text-teal-300 border border-teal-500/30">
+              Join 25,000+ Active Users
+            </span>
+            <h2 className="text-4xl font-black text-white leading-tight mt-4">
+              Begin Your Seamless Healthcare Journey
+            </h2>
+            <p className="text-sm text-slate-300 mt-3 leading-relaxed">
+              Whether you are a patient looking for care or a medical professional expanding your practice, HealthBook provides the tools you need.
+            </p>
+          </motion.div>
+
+          <div className="grid grid-cols-2 gap-4 pt-4">
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <User className="w-6 h-6 text-teal-400 mb-2" />
+              <h4 className="text-xs font-bold text-white">For Patients</h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">AI symptom triage & online booking</p>
+            </div>
+            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
+              <Activity className="w-6 h-6 text-blue-400 mb-2" />
+              <h4 className="text-xs font-bold text-white">For Doctors</h4>
+              <p className="text-[11px] text-slate-400 mt-0.5">Automated queue & availability grid</p>
+            </div>
           </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="auth-form">
-          {/* Role selector */}
-          <div className="input-group">
-            <label>Register as</label>
-            <div className="role-selector">
-              <div
-                className={`role-option ${role === 'patient' ? 'active' : ''}`}
-                onClick={() => setRole('patient')}
-              >
-                <span className="role-icon">👤</span>
-                <span className="role-label">Patient</span>
-              </div>
-              <div
-                className={`role-option ${role === 'doctor' ? 'active' : ''}`}
-                onClick={() => setRole('doctor')}
-              >
-                <span className="role-icon">🩺</span>
-                <span className="role-label">Doctor</span>
-              </div>
-            </div>
+        <p className="text-xs text-slate-400 relative z-10">
+          © {new Date().getFullYear()} HealthBook Platform. All rights reserved.
+        </p>
+      </div>
+
+      {/* Right Form */}
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4 }}
+          className="w-full max-w-md space-y-6 my-auto"
+        >
+          <div>
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
+              Create an Account
+            </h2>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-1">
+              Select your role and fill in your details to get started
+            </p>
           </div>
 
-          <div className="input-group">
-            <label htmlFor="name">Full Name *</label>
-            <input
-              id="name"
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {/* Animated Segmented Control Role Selector */}
+            <div className="p-1 bg-slate-100 dark:bg-slate-900 rounded-xl grid grid-cols-2 gap-1 border border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setRole('patient')}
+                className={`relative py-2.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  role === 'patient'
+                    ? 'text-teal-600 dark:text-teal-400'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                {role === 'patient' && (
+                  <motion.div
+                    layoutId="roleSegment"
+                    className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.3 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <User className="w-4 h-4" /> Patient
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setRole('doctor')}
+                className={`relative py-2.5 text-xs font-bold rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  role === 'doctor'
+                    ? 'text-teal-600 dark:text-teal-400'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                {role === 'doctor' && (
+                  <motion.div
+                    layoutId="roleSegment"
+                    className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
+                    transition={{ type: 'spring', bounce: 0.2, duration: 0.3 }}
+                  />
+                )}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  <Activity className="w-4 h-4" /> Doctor
+                </span>
+              </button>
+            </div>
+
+            <Input
+              label="Full Name *"
               name="name"
-              type="text"
-              className="input"
               placeholder={role === 'doctor' ? 'Dr. Sarah Jenkins' : 'Alex Mercer'}
+              icon={User}
               value={formData.name}
               onChange={handleChange}
-              required
+              error={errors.name}
             />
-          </div>
 
-          <div className="input-group">
-            <label htmlFor="email">Email Address *</label>
-            <input
-              id="email"
+            <Input
+              label="Email Address *"
               name="email"
               type="email"
-              className="input"
               placeholder="you@example.com"
+              icon={Mail}
               value={formData.email}
               onChange={handleChange}
-              required
+              error={errors.email}
             />
-          </div>
 
-          <div className="input-group">
-            <label htmlFor="phone">Phone Number</label>
-            <input
-              id="phone"
+            <Input
+              label="Phone Number"
               name="phone"
               type="tel"
-              className="input"
               placeholder="+91 9876543210"
+              icon={Phone}
               value={formData.phone}
               onChange={handleChange}
             />
-          </div>
 
-          {role === 'doctor' && (
-            <>
-              <div className="input-group">
-                <label htmlFor="specialty">Specialty *</label>
-                <select
-                  id="specialty"
+            {/* Doctor Extra Fields */}
+            {role === 'doctor' && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="space-y-4 pt-1"
+              >
+                <Select
+                  label="Specialty *"
                   name="specialty"
-                  className="input"
+                  options={specialtyOptions}
                   value={formData.specialty}
                   onChange={handleChange}
-                  required
-                >
-                  <option value="">Select Specialty</option>
-                  <option value="General Physician">General Physician</option>
-                  <option value="Cardiologist">Cardiologist</option>
-                  <option value="Dermatologist">Dermatologist</option>
-                  <option value="Neurologist">Neurologist</option>
-                  <option value="Orthopedist">Orthopedist</option>
-                  <option value="Pediatrician">Pediatrician</option>
-                  <option value="Psychiatrist">Psychiatrist</option>
-                  <option value="Gastroenterologist">Gastroenterologist</option>
-                  <option value="ENT Specialist">ENT Specialist</option>
-                  <option value="Dentist">Dentist</option>
-                </select>
-              </div>
+                  error={errors.specialty}
+                />
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div className="input-group">
-                  <label htmlFor="fee">Consult Fee (₹)</label>
-                  <input
-                    id="fee"
+                <div className="grid grid-cols-2 gap-3">
+                  <Input
+                    label="Consultation Fee (₹)"
                     name="fee"
                     type="number"
-                    min="0"
-                    step="50"
-                    className="input"
                     placeholder="500"
+                    icon={IndianRupee}
                     value={formData.fee}
                     onChange={handleChange}
                   />
-                </div>
-                <div className="input-group">
-                  <label htmlFor="experienceYears">Experience (Years)</label>
-                  <input
-                    id="experienceYears"
+                  <Input
+                    label="Experience (Years)"
                     name="experienceYears"
                     type="number"
-                    min="0"
-                    className="input"
                     placeholder="5"
+                    icon={Award}
                     value={formData.experienceYears}
                     onChange={handleChange}
                   />
                 </div>
-              </div>
-            </>
-          )}
-
-          <div className="input-group">
-            <label htmlFor="password">Password (min 6 characters) *</label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              className="input"
-              placeholder="••••••••"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              minLength={6}
-            />
-          </div>
-
-          <button
-            type="submit"
-            className="btn btn-primary btn-lg"
-            style={{ width: '100%', marginTop: '12px' }}
-            disabled={loading}
-          >
-            {loading ? 'Creating Account...' : (
-              <>
-                Create Account <FiArrowRight />
-              </>
+              </motion.div>
             )}
-          </button>
-        </form>
 
-        <div className="auth-footer">
-          Already have an account? <Link to="/login">Sign in here</Link>
-        </div>
+            <div>
+              <Input
+                label="Password *"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                placeholder="••••••••"
+                icon={Lock}
+                endIcon={showPassword ? EyeOff : Eye}
+                onEndIconClick={() => setShowPassword(!showPassword)}
+                value={formData.password}
+                onChange={handleChange}
+                error={errors.password}
+              />
+              {/* Password Strength Meter */}
+              {formData.password && (
+                <div className="mt-2 space-y-1">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Password strength:</span>
+                    <span className="font-bold text-slate-700 dark:text-slate-300">
+                      {strength.label}
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-300 ${strength.color}`}
+                      style={{ width: `${strength.score}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              loading={loading}
+              icon={ArrowRight}
+              className="w-full shadow-lg shadow-teal-500/20 mt-2"
+            >
+              Create {role === 'doctor' ? 'Doctor Account' : 'Patient Account'}
+            </Button>
+          </form>
+
+          <div className="text-center pt-3 border-t border-slate-200 dark:border-slate-800">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              Already have an account?{' '}
+              <Link to="/login" className="font-bold text-teal-600 dark:text-teal-400 hover:underline">
+                Sign in here
+              </Link>
+            </p>
+          </div>
+        </motion.div>
       </div>
     </div>
   );

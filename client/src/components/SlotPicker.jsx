@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../api/axios';
-import Spinner from './Spinner';
+import { Skeleton } from './ui/Skeleton';
+import { Button } from './ui/Button';
+import { Input } from './ui/Input';
+import { Textarea } from './ui/Textarea';
 import toast from 'react-hot-toast';
-import { FiCalendar, FiCheck, FiFileText } from 'react-icons/fi';
+import { Calendar as CalendarIcon, Clock, Check, FileText } from 'lucide-react';
 
 const SlotPicker = ({ doctor, onBookingSuccess }) => {
-  // Today's date in YYYY-MM-DD format
   const getTodayString = () => {
     const today = new Date();
     const y = today.getFullYear();
@@ -68,7 +70,7 @@ const SlotPicker = ({ doctor, onBookingSuccess }) => {
       });
 
       if (res.data?.success) {
-        toast.success('Appointment booked successfully!');
+        toast.success('Appointment reserved successfully!');
         if (onBookingSuccess) {
           onBookingSuccess(res.data.data);
         }
@@ -81,52 +83,48 @@ const SlotPicker = ({ doctor, onBookingSuccess }) => {
   };
 
   return (
-    <div style={{ marginTop: '16px' }}>
-      <h3 style={{ fontSize: '1.1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-        <FiCalendar color="var(--clr-primary)" /> Select Date & Time Slot
-      </h3>
-
-      {/* Date Picker */}
-      <div className="input-group" style={{ marginBottom: '16px' }}>
-        <label htmlFor="booking-date">Consultation Date</label>
-        <input
-          id="booking-date"
-          type="date"
-          className="input"
-          min={getTodayString()}
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+    <div className="space-y-5 pt-2">
+      <div className="flex items-center gap-2 pb-2 border-b border-slate-100 dark:border-slate-800">
+        <CalendarIcon className="w-5 h-5 text-teal-500" />
+        <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+          Select Date & Consultation Slot
+        </h3>
       </div>
 
-      {/* Time Slots */}
+      <Input
+        label="Consultation Date"
+        type="date"
+        min={getTodayString()}
+        value={date}
+        onChange={(e) => setDate(e.target.value)}
+        icon={CalendarIcon}
+      />
+
       {loadingSlots ? (
-        <div style={{ padding: '24px 0' }}>
-          <Spinner message="Checking doctor schedule..." />
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-32" />
+          <div className="grid grid-cols-4 gap-2">
+            {[...Array(8)].map((_, i) => (
+              <Skeleton key={i} className="h-10 rounded-xl" />
+            ))}
+          </div>
         </div>
       ) : message ? (
-        <div className="alert alert-error" style={{ marginBottom: '16px' }}>
+        <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-xs font-semibold text-amber-700 dark:text-amber-300">
           {message}
         </div>
       ) : slots.length === 0 ? (
-        <div className="alert alert-error" style={{ marginBottom: '16px' }}>
-          No open slots available for {weekday} ({date}). Please try another date.
+        <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-xs font-semibold text-rose-700 dark:text-rose-300">
+          No open consultation slots available for {weekday} ({date}). Please pick another date.
         </div>
       ) : (
-        <div style={{ marginBottom: '20px' }}>
-          <label style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--clr-text-muted)', display: 'block', marginBottom: '8px' }}>
-            Available Time Slots ({weekday})
+        <div className="space-y-2">
+          <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+            <span>Available Slots ({weekday})</span>
+            <span className="text-teal-600 dark:text-teal-400 font-bold">{slots.length} Slots</span>
           </label>
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))',
-              gap: '8px',
-              maxHeight: '180px',
-              overflowY: 'auto',
-              paddingRight: '4px',
-            }}
-          >
+
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 max-h-48 overflow-y-auto p-1">
             {slots.map((slot) => {
               const isSelected = selectedSlot === slot;
               return (
@@ -134,23 +132,14 @@ const SlotPicker = ({ doctor, onBookingSuccess }) => {
                   type="button"
                   key={slot}
                   onClick={() => setSelectedSlot(slot)}
-                  style={{
-                    padding: '8px 4px',
-                    borderRadius: 'var(--r-md)',
-                    fontSize: '0.85rem',
-                    fontWeight: 600,
-                    border: isSelected
-                      ? '1.5px solid var(--clr-primary)'
-                      : '1px solid var(--clr-border)',
-                    background: isSelected
-                      ? 'var(--clr-primary-glow)'
-                      : 'var(--clr-surface)',
-                    color: isSelected ? 'var(--clr-primary)' : 'var(--clr-text)',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                  }}
+                  className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-teal-500 text-white border-teal-500 shadow-md shadow-teal-500/20 scale-[1.02]'
+                      : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700 hover:border-teal-500 dark:hover:border-teal-500'
+                  }`}
                 >
-                  {slot}
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>{slot}</span>
                 </button>
               );
             })}
@@ -158,37 +147,26 @@ const SlotPicker = ({ doctor, onBookingSuccess }) => {
         </div>
       )}
 
-      {/* Symptoms / Visit Notes */}
-      <div className="input-group" style={{ marginBottom: '20px' }}>
-        <label htmlFor="notes" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <FiFileText color="var(--clr-accent)" /> Reason for Visit / Symptoms (Optional)
-        </label>
-        <textarea
-          id="notes"
-          className="input"
-          rows={3}
-          placeholder="Briefly describe your symptoms or reason for appointment..."
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
-      </div>
+      <Textarea
+        label="Reason for Visit / Symptoms (Optional)"
+        rows={2}
+        placeholder="Briefly state your symptoms..."
+        value={notes}
+        onChange={(e) => setNotes(e.target.value)}
+      />
 
-      {/* Book Submit Button */}
-      <button
+      <Button
         type="button"
-        className="btn btn-primary btn-lg"
-        style={{ width: '100%' }}
-        disabled={!selectedSlot || booking || slots.length === 0}
+        variant="primary"
+        size="lg"
+        loading={booking}
+        disabled={!selectedSlot || slots.length === 0}
         onClick={handleBook}
+        icon={Check}
+        className="w-full shadow-lg shadow-teal-500/20"
       >
-        {booking ? (
-          'Reserving Slot...'
-        ) : (
-          <>
-            <FiCheck /> Confirm Appointment ({selectedSlot || 'Select Slot'})
-          </>
-        )}
-      </button>
+        Confirm Appointment ({selectedSlot || 'Select Slot'})
+      </Button>
     </div>
   );
 };

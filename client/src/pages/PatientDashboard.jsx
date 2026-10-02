@@ -1,21 +1,41 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
-import Spinner from '../components/Spinner';
+import { DashboardLayout } from '../components/layout/DashboardLayout';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import { Badge } from '../components/ui/Badge';
+import { Avatar } from '../components/ui/Avatar';
+import { Skeleton } from '../components/ui/Skeleton';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Modal } from '../components/ui/Modal';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Tabs, TabContent } from '../components/ui/Tabs';
 import SlotPicker from '../components/SlotPicker';
 import SymptomNavigator from '../components/SymptomNavigator';
 import toast from 'react-hot-toast';
 import {
-  FiSearch,
-  FiCalendar,
-  FiClock,
-  FiDollarSign,
-  FiAward,
-  FiX,
-  FiChevronRight,
-  FiXCircle,
-  FiCreditCard,
-} from 'react-icons/fi';
+  Search,
+  Calendar,
+  Clock,
+  IndianRupee,
+  Award,
+  ChevronRight,
+  CreditCard,
+  XCircle,
+  CheckCircle,
+  Filter,
+  Grid,
+  List,
+  Printer,
+  Sparkles,
+  Stethoscope,
+  ArrowRight,
+  ShieldCheck,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const SPECIALTIES = [
   'All Specialties',
@@ -42,19 +62,24 @@ const SPECIALTIES = [
 const PatientDashboard = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'appointments'
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
+  const [appointmentSubTab, setAppointmentSubTab] = useState('upcoming'); // 'upcoming' | 'completed' | 'cancelled'
 
   // Directory State
   const [doctors, setDoctors] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('All Specialties');
-  const [maxFee, setMaxFee] = useState('');
+  const [maxFee, setMaxFee] = useState(2000);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
 
   // Appointments State
   const [myAppointments, setMyAppointments] = useState([]);
   const [loadingAppointments, setLoadingAppointments] = useState(false);
   const [payingApptId, setPayingApptId] = useState(null);
+  const [cancelDialogAppt, setCancelDialogAppt] = useState(null);
+  const [cancelling, setCancelling] = useState(false);
+  const [receiptAppt, setReceiptAppt] = useState(null);
 
   const fetchDoctors = useCallback(async () => {
     try {
@@ -97,32 +122,50 @@ const PatientDashboard = () => {
     fetchMyAppointments();
   }, [fetchDoctors, fetchMyAppointments]);
 
-  const handleCancelAppointment = async (id) => {
-    if (!window.confirm('Are you sure you want to cancel this appointment?')) return;
+  const handleCancelAppointment = async () => {
+    if (!cancelDialogAppt) return;
+    setCancelling(true);
     try {
-      const res = await api.patch(`/appointments/${id}/cancel`);
+      const res = await api.patch(`/appointments/${cancelDialogAppt._id}/cancel`);
       if (res.data?.success) {
-        toast.success('Appointment cancelled');
+        toast.success('Appointment cancelled. Refund initiated if paid.');
+        setCancelDialogAppt(null);
         fetchMyAppointments();
       }
     } catch (err) {
       toast.error(err.message || 'Failed to cancel appointment');
+    } finally {
+      setCancelling(false);
     }
   };
 
-  // Phase 5: Razorpay Checkout Handler
+  // Razorpay Checkout Handler
   const handlePayNow = async (appointmentId) => {
     setPayingApptId(appointmentId);
     try {
-      // 1. Create Razorpay order on backend
       const orderRes = await api.post('/payments/create-order', { appointmentId });
       if (!orderRes.data?.success) {
         throw new Error(orderRes.data?.message || 'Order creation failed');
       }
 
-      const { orderId, amount, currency, keyId } = orderRes.data.data;
+      const { orderId, amount, currency, keyId, isDemo } = orderRes.data.data;
 
-      // 2. Configure Razorpay Modal Options
+      // Handle Demo Checkout Mode if placeholder keys are used in .env
+      if (isDemo || keyId === 'rzp_test_demo' || keyId.includes('xxxx')) {
+        const verifyRes = await api.post('/payments/verify', {
+          razorpay_order_id: orderId,
+          razorpay_payment_id: `pay_demo_${Date.now()}`,
+          razorpay_signature: 'demo_signature',
+          appointmentId,
+        });
+
+        if (verifyRes.data?.success) {
+          toast.success('Payment verified (Demo Mode) & consultation confirmed! 🎉');
+          fetchMyAppointments();
+        }
+        return;
+      }
+
       const options = {
         key: keyId,
         amount: amount,
@@ -132,7 +175,6 @@ const PatientDashboard = () => {
         order_id: orderId,
         handler: async (response) => {
           try {
-            // 3. Verify Payment Signature
             const verifyRes = await api.post('/payments/verify', {
               razorpay_order_id: response.razorpay_order_id,
               razorpay_payment_id: response.razorpay_payment_id,
@@ -153,7 +195,7 @@ const PatientDashboard = () => {
           email: user?.email,
         },
         theme: {
-          color: '#00d4aa',
+          color: '#0d9488',
         },
       };
 
@@ -177,102 +219,136 @@ const PatientDashboard = () => {
     setActiveTab('appointments');
   };
 
-  // Client-side search by doctor name
   const filteredDoctors = doctors.filter((doc) => {
     const name = doc.user?.name || '';
     return name.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
+  // Calculate stats & next appointment countdown
+  const upcomingCount = myAppointments.filter((a) => ['pending', 'confirmed'].includes(a.status)).length;
+  const completedCount = myAppointments.filter((a) => a.status === 'completed').length;
+  const cancelledCount = myAppointments.filter((a) => a.status === 'cancelled').length;
+
+  const nextAppointment = myAppointments.find((a) => ['pending', 'confirmed'].includes(a.status));
+
+  const filteredSubAppointments = myAppointments.filter((a) => {
+    if (appointmentSubTab === 'upcoming') return ['pending', 'confirmed'].includes(a.status);
+    if (appointmentSubTab === 'completed') return a.status === 'completed';
+    if (appointmentSubTab === 'cancelled') return a.status === 'cancelled';
+    return true;
+  });
+
   return (
-    <div className="page">
-      <div className="container">
-        {/* Header */}
-        <div className="dashboard-header animate-fade-up">
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px',
-            }}
-          >
-            <div>
-              <h1>
-                Patient Portal — <span className="text-gradient">{user?.name}</span>
-              </h1>
-              <p>Explore specialists, navigate symptoms with AI, and manage consultations.</p>
-            </div>
-            <span className="badge badge-primary" style={{ padding: '8px 16px', fontSize: '0.85rem' }}>
-              Patient Account
-            </span>
+    <DashboardLayout
+      title={`Welcome back, ${user?.name || 'Patient'} 👋`}
+      subtitle="Find top medical specialists, get AI symptom guidance, and manage consultations."
+    >
+      {/* Overview Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <Card className="p-5 flex items-center gap-4 bg-gradient-to-br from-teal-500/10 to-teal-500/5 border-teal-200 dark:border-teal-800/60">
+          <div className="p-3.5 rounded-2xl bg-teal-500 text-white shadow-md shadow-teal-500/20">
+            <Calendar className="w-6 h-6" />
           </div>
-        </div>
+          <div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+              {upcomingCount}
+            </div>
+            <div className="text-xs font-semibold text-teal-700 dark:text-teal-300">
+              Upcoming Consultations
+            </div>
+          </div>
+        </Card>
 
-        {/* Tab Navigation */}
-        <div
-          style={{
-            display: 'flex',
-            gap: '12px',
-            marginBottom: '24px',
-            borderBottom: '1px solid var(--clr-border)',
-            paddingBottom: '12px',
-          }}
-        >
-          <button
-            className={`btn ${activeTab === 'directory' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('directory')}
-          >
-            <FiSearch /> Find Specialists ({doctors.length})
-          </button>
-          <button
-            className={`btn ${activeTab === 'appointments' ? 'btn-primary' : 'btn-ghost'}`}
-            onClick={() => setActiveTab('appointments')}
-          >
-            <FiCalendar /> My Appointments ({myAppointments.length})
-          </button>
-        </div>
+        <Card className="p-5 flex items-center gap-4 bg-gradient-to-br from-blue-500/10 to-blue-500/5 border-blue-200 dark:border-blue-800/60">
+          <div className="p-3.5 rounded-2xl bg-blue-500 text-white shadow-md shadow-blue-500/20">
+            <CheckCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+              {completedCount}
+            </div>
+            <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+              Completed Visits
+            </div>
+          </div>
+        </Card>
 
-        {/* TAB 1: Doctor Directory & AI Symptom Navigator */}
-        {activeTab === 'directory' && (
-          <>
-            {/* Phase 6: AI Symptom Navigator */}
-            <SymptomNavigator
-              onApplySpecialty={(spec) => {
-                setSelectedSpecialty(spec);
-              }}
-            />
+        <Card className="p-5 flex items-center gap-4 bg-gradient-to-br from-rose-500/10 to-rose-500/5 border-rose-200 dark:border-rose-800/60">
+          <div className="p-3.5 rounded-2xl bg-rose-500 text-white shadow-md shadow-rose-500/20">
+            <XCircle className="w-6 h-6" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+              {cancelledCount}
+            </div>
+            <div className="text-xs font-semibold text-rose-700 dark:text-rose-300">
+              Cancelled Visits
+            </div>
+          </div>
+        </Card>
+      </div>
 
+      {/* Next Appointment Highlight Banner */}
+      {nextAppointment && (
+        <Card className="p-6 bg-gradient-to-r from-teal-900 to-slate-900 text-white shadow-xl border-teal-500/30 mb-8 relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                Next Upcoming Consultation
+              </span>
+              <h3 className="text-xl font-bold text-white">
+                Dr. {nextAppointment.doctor?.user?.name}
+              </h3>
+              <p className="text-xs text-slate-300">
+                {nextAppointment.doctor?.specialty} • {nextAppointment.date} at {nextAppointment.startTime}
+              </p>
+            </div>
+            <div className="flex items-center gap-3">
+              <Badge status={nextAppointment.status} className="text-xs px-3 py-1" />
+              {nextAppointment.payment?.status === 'unpaid' && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => handlePayNow(nextAppointment._id)}
+                  loading={payingApptId === nextAppointment._id}
+                  icon={CreditCard}
+                >
+                  Pay ₹{nextAppointment.payment?.amount || nextAppointment.doctor?.fee}
+                </Button>
+              )}
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Main Tabs (Find Specialists vs My Appointments) */}
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        tabs={[
+          { value: 'directory', label: `Find Specialists (${doctors.length})`, icon: Stethoscope },
+          { value: 'appointments', label: `My Appointments (${myAppointments.length})`, icon: Calendar, badge: upcomingCount },
+        ]}
+      >
+        {/* TAB 1: Doctor Directory & AI Navigator */}
+        <TabContent value="directory">
+          <div id="ai-navigator">
+            <SymptomNavigator onApplySpecialty={(spec) => setSelectedSpecialty(spec)} />
+          </div>
+
+          <div id="find-doctors">
             {/* Filter Bar */}
-            <div
-              className="card animate-fade-up"
-              style={{ marginBottom: '32px', padding: '20px' }}
-            >
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-                  gap: '16px',
-                  alignItems: 'end',
-                }}
-              >
-                <div className="input-group">
-                  <label htmlFor="search">Search Doctor Name</label>
-                  <input
-                    id="search"
-                    type="text"
-                    className="input"
-                    placeholder="Search doctor..."
+            <Card className="p-5 mb-6">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 flex-1">
+                  <Input
+                    placeholder="Search doctor by name..."
+                    icon={Search}
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
-                </div>
 
-                <div className="input-group">
-                  <label htmlFor="specialty-filter">Specialty Filter</label>
-                  <select
-                    id="specialty-filter"
-                    className="input"
+                  <Select
                     value={selectedSpecialty}
                     onChange={(e) => setSelectedSpecialty(e.target.value)}
                   >
@@ -281,399 +357,363 @@ const PatientDashboard = () => {
                         {spec}
                       </option>
                     ))}
-                  </select>
+                  </Select>
+
+                  <div className="flex flex-col gap-1 justify-center">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <span className="text-slate-500">Max Fee:</span>
+                      <span className="text-teal-600 dark:text-teal-400">₹{maxFee}</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="200"
+                      max="3000"
+                      step="100"
+                      value={maxFee}
+                      onChange={(e) => setMaxFee(e.target.value)}
+                      className="accent-teal-500 cursor-pointer"
+                    />
+                  </div>
                 </div>
 
-                <div className="input-group">
-                  <label htmlFor="max-fee">Max Fee (₹)</label>
-                  <input
-                    id="max-fee"
-                    type="number"
-                    min="0"
-                    step="100"
-                    className="input"
-                    placeholder="e.g. 1000"
-                    value={maxFee}
-                    onChange={(e) => setMaxFee(e.target.value)}
-                  />
-                </div>
-
-                <div>
-                  <button
-                    type="button"
-                    className="btn btn-ghost"
-                    style={{ width: '100%' }}
+                <div className="flex items-center gap-2 justify-end">
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => {
                       setSearchTerm('');
                       setSelectedSpecialty('All Specialties');
-                      setMaxFee('');
+                      setMaxFee(2000);
                     }}
                   >
-                    Reset Filters
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Doctor Cards Grid */}
-            {loadingDoctors ? (
-              <Spinner message="Searching verified specialists..." />
-            ) : filteredDoctors.length === 0 ? (
-              <div className="card empty-state animate-fade-up">
-                <div className="empty-state-icon">🩺</div>
-                <h3>No Verified Doctors Found</h3>
-                <p>Try adjusting your search terms or fee filter.</p>
-              </div>
-            ) : (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-                  gap: '24px',
-                }}
-              >
-                {filteredDoctors.map((doctor) => (
-                  <div
-                    key={doctor._id}
-                    className="card animate-fade-up"
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      gap: '16px',
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          justifyContent: 'space-between',
-                          marginBottom: '12px',
-                        }}
-                      >
-                        <div>
-                          <h3 style={{ fontSize: '1.25rem', marginBottom: '4px' }}>
-                            Dr. {doctor.user?.name}
-                          </h3>
-                          <span className="badge badge-info">{doctor.specialty || 'General Practitioner'}</span>
-                        </div>
-                        <span
-                          className="badge badge-primary"
-                          style={{ fontSize: '0.9rem', fontWeight: 700 }}
-                        >
-                          ₹{doctor.fee}
-                        </span>
-                      </div>
-
-                      <p
-                        style={{
-                          fontSize: '0.88rem',
-                          lineHeight: '1.5',
-                          marginBottom: '16px',
-                          display: '-webkit-box',
-                          WebkitLineClamp: 2,
-                          WebkitBoxOrient: 'vertical',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        {doctor.bio || 'No bio provided.'}
-                      </p>
-
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '16px',
-                          fontSize: '0.82rem',
-                          color: 'var(--clr-text-muted)',
-                          marginBottom: '16px',
-                        }}
-                      >
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <FiAward color="var(--clr-primary)" /> {doctor.experienceYears || 0} Yrs Exp.
-                        </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <FiClock color="var(--clr-accent)" /> {doctor.slotDurationMinutes || 30}m Slot
-                        </span>
-                      </div>
-
-                      <div>
-                        <span
-                          style={{
-                            fontSize: '0.78rem',
-                            fontWeight: 600,
-                            color: 'var(--clr-text-muted)',
-                            display: 'block',
-                            marginBottom: '6px',
-                          }}
-                        >
-                          Working Schedule:
-                        </span>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                          {doctor.availability && doctor.availability.length > 0 ? (
-                            doctor.availability.map((a, i) => (
-                              <span
-                                key={i}
-                                className="badge badge-primary"
-                                style={{ fontSize: '0.7rem', padding: '2px 8px' }}
-                              >
-                                {a.day.slice(0, 3)} ({a.startTime})
-                              </span>
-                            ))
-                          ) : (
-                            <span style={{ fontSize: '0.8rem', color: 'var(--clr-text-dim)' }}>
-                              Schedule not listed
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
+                    Reset
+                  </Button>
+                  <div className="flex items-center border border-slate-200 dark:border-slate-800 rounded-xl p-1 bg-slate-100 dark:bg-slate-900">
                     <button
                       type="button"
-                      className="btn btn-primary"
-                      style={{ width: '100%', marginTop: '8px' }}
-                      onClick={() => setSelectedDoctor(doctor)}
+                      onClick={() => setViewMode('grid')}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        viewMode === 'grid'
+                          ? 'bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-sm'
+                          : 'text-slate-400'
+                      }`}
                     >
-                      Book Consultation <FiChevronRight />
+                      <Grid className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewMode('list')}
+                      className={`p-1.5 rounded-lg transition-colors ${
+                        viewMode === 'list'
+                          ? 'bg-white dark:bg-slate-800 text-teal-600 dark:text-teal-400 shadow-sm'
+                          : 'text-slate-400'
+                      }`}
+                    >
+                      <List className="w-4 h-4" />
                     </button>
                   </div>
+                </div>
+              </div>
+            </Card>
+
+            {/* Doctors Grid / List View */}
+            {loadingDoctors ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="p-6 space-y-4">
+                    <div className="flex items-center gap-3">
+                      <Skeleton circle className="w-12 h-12" />
+                      <div className="space-y-2 flex-1">
+                        <Skeleton className="h-4 w-3/4" />
+                        <Skeleton className="h-3 w-1/2" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-12" />
+                    <Skeleton className="h-10 rounded-xl" />
+                  </Card>
+                ))}
+              </div>
+            ) : filteredDoctors.length === 0 ? (
+              <EmptyState
+                icon={Stethoscope}
+                title="No Specialists Found"
+                description="Try broadening your search term, specialty filter, or fee range slider."
+                actionLabel="Clear Filters"
+                onAction={() => {
+                  setSearchTerm('');
+                  setSelectedSpecialty('All Specialties');
+                  setMaxFee(3000);
+                }}
+              />
+            ) : (
+              <div
+                className={
+                  viewMode === 'grid'
+                    ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'
+                    : 'space-y-4'
+                }
+              >
+                {filteredDoctors.map((doctor) => (
+                  <motion.div
+                    key={doctor._id}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <Card className="p-6 flex flex-col justify-between h-full hover:border-teal-500/50 transition-all">
+                      <div className="space-y-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <Avatar size="lg" fallback={doctor.user?.name} />
+                            <div>
+                              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                                Dr. {doctor.user?.name}
+                              </h3>
+                              <Badge status="confirmed" className="mt-1">
+                                {doctor.specialty || 'General Physician'}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="text-lg font-black text-teal-600 dark:text-teal-400">
+                              ₹{doctor.fee}
+                            </div>
+                            <span className="text-[10px] text-slate-400">per consult</span>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-2 leading-relaxed">
+                          {doctor.bio || 'Experienced practitioner dedicated to patient wellbeing.'}
+                        </p>
+
+                        <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 border-t border-b border-slate-100 dark:border-slate-800/80 py-3">
+                          <div className="flex items-center gap-1.5">
+                            <Award className="w-4 h-4 text-teal-500" />
+                            <span>{doctor.experienceYears || 0} Yrs Exp.</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-4 h-4 text-blue-500" />
+                            <span>{doctor.slotDurationMinutes || 30}m Slot</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button
+                        variant="primary"
+                        icon={ArrowRight}
+                        onClick={() => setSelectedDoctor(doctor)}
+                        className="w-full mt-5"
+                      >
+                        Book Consultation
+                      </Button>
+                    </Card>
+                  </motion.div>
                 ))}
               </div>
             )}
-          </>
-        )}
-
-        {/* TAB 2: My Appointments & Razorpay Pay Now */}
-        {activeTab === 'appointments' && (
-          <div>
-            {loadingAppointments ? (
-              <Spinner message="Fetching your appointments..." />
-            ) : myAppointments.length === 0 ? (
-              <div className="card empty-state animate-fade-up">
-                <div className="empty-state-icon">🗓️</div>
-                <h3>No Appointments Yet</h3>
-                <p>Browse our verified specialists and book your first consultation slot.</p>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ marginTop: '16px' }}
-                  onClick={() => setActiveTab('directory')}
-                >
-                  Find a Doctor
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {myAppointments.map((appt) => {
-                  const statusClass =
-                    appt.status === 'confirmed'
-                      ? 'badge-success'
-                      : appt.status === 'completed'
-                      ? 'badge-info'
-                      : appt.status === 'cancelled'
-                      ? 'badge-danger'
-                      : 'badge-warning';
-
-                  const isUnpaid = appt.payment?.status === 'unpaid' && appt.status !== 'cancelled';
-
-                  return (
-                    <div
-                      key={appt._id}
-                      className="card animate-fade-up"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        flexWrap: 'wrap',
-                        gap: '16px',
-                      }}
-                    >
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-                          <h3 style={{ fontSize: '1.2rem' }}>
-                            Dr. {appt.doctor?.user?.name || 'Practitioner'}
-                          </h3>
-                          <span className={`badge ${statusClass}`}>
-                            {appt.status?.toUpperCase()}
-                          </span>
-                          <span
-                            className={`badge ${
-                              appt.payment?.status === 'paid'
-                                ? 'badge-success'
-                                : appt.payment?.status === 'refunded'
-                                ? 'badge-secondary'
-                                : 'badge-warning'
-                            }`}
-                          >
-                            {appt.payment?.status === 'paid'
-                              ? 'PAID ✓'
-                              : appt.payment?.status === 'refunded'
-                              ? 'REFUNDED'
-                              : 'UNPAID'}
-                          </span>
-                        </div>
-
-                        <p style={{ fontSize: '0.9rem', color: 'var(--clr-text-muted)', marginBottom: '8px' }}>
-                          <strong style={{ color: 'var(--clr-text)' }}>Specialty:</strong>{' '}
-                          {appt.doctor?.specialty || 'General'}
-                        </p>
-
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '20px',
-                            fontSize: '0.88rem',
-                            color: 'var(--clr-text-muted)',
-                          }}
-                        >
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <FiCalendar color="var(--clr-primary)" /> {appt.date}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <FiClock color="var(--clr-accent)" /> {appt.startTime}
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <FiDollarSign color="var(--clr-warning)" /> ₹{appt.payment?.amount || appt.doctor?.fee}
-                          </span>
-                        </div>
-
-                        {appt.notes && (
-                          <p
-                            style={{
-                              marginTop: '8px',
-                              fontSize: '0.85rem',
-                              fontStyle: 'italic',
-                              color: 'var(--clr-text-dim)',
-                            }}
-                          >
-                            Note: "{appt.notes}"
-                          </p>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', alignItems: 'center' }}>
-                        {/* Phase 5: Razorpay Pay Now button */}
-                        {isUnpaid && (
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            disabled={payingApptId === appt._id}
-                            onClick={() => handlePayNow(appt._id)}
-                          >
-                            <FiCreditCard /> {payingApptId === appt._id ? 'Processing...' : `Pay Now (₹${appt.payment?.amount || appt.doctor?.fee})`}
-                          </button>
-                        )}
-
-                        {['pending', 'confirmed'].includes(appt.status) && (
-                          <button
-                            type="button"
-                            className="btn btn-danger btn-sm"
-                            onClick={() => handleCancelAppointment(appt._id)}
-                          >
-                            <FiXCircle /> Cancel
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
-        )}
+        </TabContent>
 
-        {/* Doctor Booking Modal */}
-        {selectedDoctor && (
-          <div
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
-              background: 'rgba(8, 13, 26, 0.85)',
-              backdropFilter: 'blur(8px)',
-              zIndex: 1000,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '20px',
-            }}
-          >
-            <div
-              className="card animate-fade-up"
-              style={{
-                width: '100%',
-                maxWidth: '600px',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                position: 'relative',
-              }}
+        {/* TAB 2: My Appointments */}
+        <TabContent value="appointments">
+          {/* Subtabs (Upcoming, Completed, Cancelled) */}
+          <div className="flex items-center gap-2 mb-6 border-b border-slate-200 dark:border-slate-800 pb-2">
+            <button
+              type="button"
+              onClick={() => setAppointmentSubTab('upcoming')}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${
+                appointmentSubTab === 'upcoming'
+                  ? 'bg-teal-500 text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
             >
-              <button
-                type="button"
-                onClick={() => setSelectedDoctor(null)}
-                className="btn btn-ghost btn-sm"
-                style={{
-                  position: 'absolute',
-                  top: '16px',
-                  right: '16px',
-                  padding: '6px',
-                }}
-              >
-                <FiX size={20} />
-              </button>
+              Upcoming ({upcomingCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setAppointmentSubTab('completed')}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${
+                appointmentSubTab === 'completed'
+                  ? 'bg-teal-500 text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Completed ({completedCount})
+            </button>
+            <button
+              type="button"
+              onClick={() => setAppointmentSubTab('cancelled')}
+              className={`px-4 py-2 text-xs font-bold rounded-xl transition-colors ${
+                appointmentSubTab === 'cancelled'
+                  ? 'bg-teal-500 text-white'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              Cancelled ({cancelledCount})
+            </button>
+          </div>
 
-              <h2 style={{ marginBottom: '4px' }}>Dr. {selectedDoctor.user?.name}</h2>
-              <span className="badge badge-info" style={{ marginBottom: '16px' }}>
-                {selectedDoctor.specialty || 'General Practitioner'}
-              </span>
-
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr 1fr',
-                  gap: '12px',
-                  marginBottom: '20px',
-                  background: 'var(--clr-surface)',
-                  padding: '12px',
-                  borderRadius: 'var(--r-md)',
-                }}
-              >
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--clr-text-muted)' }}>Fee</span>
-                  <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--clr-primary)' }}>
-                    ₹{selectedDoctor.fee}
-                  </p>
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--clr-text-muted)' }}>
-                    Experience
-                  </span>
-                  <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--clr-text)' }}>
-                    {selectedDoctor.experienceYears} Years
-                  </p>
-                </div>
-                <div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--clr-text-muted)' }}>
-                    Consultation
-                  </span>
-                  <p style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--clr-accent)' }}>
-                    {selectedDoctor.slotDurationMinutes} Mins
-                  </p>
-                </div>
-              </div>
-
-              {/* SlotPicker */}
-              <SlotPicker doctor={selectedDoctor} onBookingSuccess={handleBookingSuccess} />
+          {loadingAppointments ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-28 rounded-2xl" />
+              ))}
             </div>
+          ) : filteredSubAppointments.length === 0 ? (
+            <EmptyState
+              icon={Calendar}
+              title={`No ${appointmentSubTab} appointments`}
+              description="You do not have any appointments in this category."
+              actionLabel="Book New Appointment"
+              onAction={() => setActiveTab('directory')}
+            />
+          ) : (
+            <div className="space-y-4">
+              {filteredSubAppointments.map((appt) => {
+                const isUnpaid = appt.payment?.status === 'unpaid' && appt.status !== 'cancelled';
+                return (
+                  <Card key={appt._id} className="p-5 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h4 className="text-base font-bold text-slate-900 dark:text-slate-100">
+                          Dr. {appt.doctor?.user?.name || 'Practitioner'}
+                        </h4>
+                        <Badge status={appt.status} />
+                        <Badge status={appt.payment?.status || 'unpaid'} />
+                      </div>
+
+                      <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
+                        <span className="flex items-center gap-1">
+                          <Stethoscope className="w-3.5 h-3.5 text-teal-500" />
+                          {appt.doctor?.specialty || 'General'}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Calendar className="w-3.5 h-3.5 text-blue-500" />
+                          {appt.date}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5 text-amber-500" />
+                          {appt.startTime}
+                        </span>
+                        <span className="flex items-center gap-1 font-bold text-slate-800 dark:text-slate-200">
+                          <IndianRupee className="w-3.5 h-3.5" /> ₹{appt.payment?.amount || appt.doctor?.fee}
+                        </span>
+                      </div>
+
+                      {appt.notes && (
+                        <p className="text-xs italic text-slate-400 bg-slate-50 dark:bg-slate-800/40 px-3 py-1.5 rounded-lg border border-slate-100 dark:border-slate-800">
+                          &ldquo;{appt.notes}&rdquo;
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap shrink-0">
+                      {isUnpaid && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          loading={payingApptId === appt._id}
+                          onClick={() => handlePayNow(appt._id)}
+                          icon={CreditCard}
+                        >
+                          Pay Now (₹{appt.payment?.amount || appt.doctor?.fee})
+                        </Button>
+                      )}
+
+                      {appt.payment?.status === 'paid' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setReceiptAppt(appt)}
+                          icon={Printer}
+                        >
+                          Print Receipt
+                        </Button>
+                      )}
+
+                      {['pending', 'confirmed'].includes(appt.status) && (
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => setCancelDialogAppt(appt)}
+                          icon={XCircle}
+                        >
+                          Cancel
+                        </Button>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </TabContent>
+      </Tabs>
+
+      {/* Booking Stepper Modal */}
+      <Modal
+        isOpen={!!selectedDoctor}
+        onClose={() => setSelectedDoctor(null)}
+        title={`Book Consultation with Dr. ${selectedDoctor?.user?.name}`}
+        description={`${selectedDoctor?.specialty} • Fee: ₹${selectedDoctor?.fee}`}
+        maxWidth="max-w-xl"
+      >
+        {selectedDoctor && (
+          <SlotPicker doctor={selectedDoctor} onBookingSuccess={handleBookingSuccess} />
+        )}
+      </Modal>
+
+      {/* Confirm Cancellation Dialog */}
+      <ConfirmDialog
+        isOpen={!!cancelDialogAppt}
+        onClose={() => setCancelDialogAppt(null)}
+        onConfirm={handleCancelAppointment}
+        loading={cancelling}
+        title="Cancel Appointment?"
+        description="Are you sure you want to cancel this appointment? If you have already paid, an automated refund will be initiated."
+        confirmLabel="Yes, Cancel Appointment"
+        cancelLabel="Keep Appointment"
+      />
+
+      {/* Printable Receipt Modal */}
+      <Modal
+        isOpen={!!receiptAppt}
+        onClose={() => setReceiptAppt(null)}
+        title="Official Consultation Receipt"
+        maxWidth="max-w-md"
+      >
+        {receiptAppt && (
+          <div className="space-y-4 text-xs font-sans">
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+              <div className="flex items-center justify-between border-b pb-2">
+                <span className="font-bold text-slate-900 dark:text-slate-100">HealthBook Medical Receipt</span>
+                <Badge status="paid">PAID</Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Patient:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{user?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Doctor:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">Dr. {receiptAppt.doctor?.user?.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500">Date & Time:</span>
+                <span className="font-bold text-slate-800 dark:text-slate-200">{receiptAppt.date} at {receiptAppt.startTime}</span>
+              </div>
+              <div className="flex justify-between border-t pt-2 font-bold text-sm">
+                <span>Amount Paid:</span>
+                <span className="text-teal-600 dark:text-teal-400">₹{receiptAppt.payment?.amount || receiptAppt.doctor?.fee}</span>
+              </div>
+            </div>
+
+            <Button variant="primary" className="w-full" icon={Printer} onClick={() => window.print()}>
+              Print Receipt Document
+            </Button>
           </div>
         )}
-      </div>
-    </div>
+      </Modal>
+    </DashboardLayout>
   );
 };
 

@@ -2,6 +2,18 @@ const Razorpay = require('razorpay');
 const crypto = require('crypto');
 const Appointment = require('../models/Appointment');
 
+const isKeyConfigured = () => {
+  const keyId = process.env.RAZORPAY_KEY_ID;
+  const keySecret = process.env.RAZORPAY_KEY_SECRET;
+  return (
+    keyId &&
+    !keyId.includes('xxxx') &&
+    keyId !== 'rzp_test_placeholder' &&
+    keySecret &&
+    !keySecret.includes('xxxx')
+  );
+};
+
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder',
   key_secret: process.env.RAZORPAY_KEY_SECRET || 'placeholder_secret',
@@ -16,13 +28,8 @@ const processRefund = async (appointment) => {
   }
 
   let refundDetails = null;
-  const isKeyConfigured =
-    process.env.RAZORPAY_KEY_ID &&
-    !process.env.RAZORPAY_KEY_ID.includes('xxxx') &&
-    process.env.RAZORPAY_KEY_SECRET &&
-    !process.env.RAZORPAY_KEY_SECRET.includes('xxxx');
 
-  if (appointment.payment.razorpayPaymentId && isKeyConfigured) {
+  if (appointment.payment.razorpayPaymentId && isKeyConfigured()) {
     try {
       refundDetails = await razorpay.payments.refund(appointment.payment.razorpayPaymentId, {
         amount: Math.round(appointment.payment.amount * 100), // paise
@@ -45,7 +52,7 @@ const processRefund = async (appointment) => {
 
 exports.processRefund = processRefund;
 
-// POST /api/payments/create-order  – create a Razorpay order for an appointment
+// POST /api/payments/create-order – create a Razorpay order for an appointment
 exports.createOrder = async (req, res) => {
   try {
     const { appointmentId } = req.body;
@@ -65,33 +72,49 @@ exports.createOrder = async (req, res) => {
 
     const amountInPaise = appointment.payment.amount * 100; // Razorpay uses paise
 
-    const order = await razorpay.orders.create({
-      amount: amountInPaise,
-      currency: 'INR',
-      receipt: `receipt_${appointmentId}`,
-    });
+    let orderId;
+    let orderAmount = amountInPaise;
+    let orderCurrency = 'INR';
+
+    if (isKeyConfigured()) {
+      const order = await razorpay.orders.create({
+        amount: amountInPaise,
+        currency: 'INR',
+        receipt: `receipt_${appointmentId}`,
+      });
+      orderId = order.id;
+      orderAmount = order.amount;
+      orderCurrency = order.currency;
+    } else {
+      // Demo / Fallback mode when placeholder Razorpay keys are used
+      orderId = `order_demo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+    }
 
     // Store the Razorpay order ID on the appointment
-    appointment.payment.razorpayOrderId = order.id;
+    appointment.payment.razorpayOrderId = orderId;
     await appointment.save();
 
     res.json({
       success: true,
       data: {
-        orderId: order.id,
-        amount: order.amount,
-        currency: order.currency,
+        orderId,
+        amount: orderAmount,
+        currency: orderCurrency,
         appointmentId,
-        keyId: process.env.RAZORPAY_KEY_ID,
+        keyId: isKeyConfigured() ? process.env.RAZORPAY_KEY_ID : 'rzp_test_demo',
+        isDemo: !isKeyConfigured(),
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
+    console.error('Payment createOrder error:', err);
+    res.status(500).json({
+      success: false,
+      message: err.message || 'Failed to create payment order. Please check your Razorpay API keys.',
+    });
   }
 };
 
-// POST /api/payments/verify  – verify Razorpay signature and confirm appointment
+// POST /api/payments/verify – verify Razorpay signature and confirm appointment
 exports.verifyPayment = async (req, res) => {
   try {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, appointmentId } = req.body;
@@ -119,20 +142,22 @@ exports.verifyPayment = async (req, res) => {
       return res.status(400).json({ success: false, message: 'This appointment is already paid' });
     }
 
-    // 4. Server-side HMAC signature verification
-    const expectedSignature = crypto
-      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
-      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-      .digest('hex');
+    // 4. Server-side HMAC signature verification (if real keys configured)
+    if (isKeyConfigured()) {
+      const expectedSignature = crypto
+        .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+        .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+        .digest('hex');
 
-    if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(razorpay_signature))) {
-      return res.status(400).json({ success: false, message: 'Payment verification failed. Invalid signature.' });
+      if (!crypto.timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(razorpay_signature))) {
+        return res.status(400).json({ success: false, message: 'Payment verification failed. Invalid signature.' });
+      }
     }
 
     // 5. All checks passed — mark as paid and confirmed
     appointment.status = 'confirmed';
     appointment.payment.status = 'paid';
-    appointment.payment.razorpayPaymentId = razorpay_payment_id;
+    appointment.payment.razorpayPaymentId = razorpay_payment_id || `pay_demo_${Date.now()}`;
     await appointment.save();
 
     // Re-fetch with populated references for the response
@@ -143,12 +168,12 @@ exports.verifyPayment = async (req, res) => {
 
     res.json({ success: true, message: 'Payment verified. Appointment confirmed!', data: populated });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
+    console.error('Payment verify error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Payment verification error.' });
   }
 };
 
-// POST /api/payments/refund  – refund a paid appointment
+// POST /api/payments/refund – refund a paid appointment
 exports.refundPayment = async (req, res) => {
   try {
     const { appointmentId } = req.body;
@@ -183,7 +208,7 @@ exports.refundPayment = async (req, res) => {
       data: appointment,
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
+    console.error('Payment refund error:', err);
+    res.status(500).json({ success: false, message: err.message || 'Refund error.' });
   }
 };
