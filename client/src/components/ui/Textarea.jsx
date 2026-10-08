@@ -21,7 +21,7 @@ export const Textarea = React.forwardRef(
           className={`w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900/80 border text-sm rounded-xl text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 transition-all duration-200 outline-none focus:ring-2 resize-y ${
             error
               ? 'border-rose-500 focus:ring-rose-500/20'
-              : 'border-slate-200 dark:border-slate-800 focus:border-teal-500 dark:focus:border-teal-500 focus:ring-teal-500/20'
+              : 'border-slate-200 dark:border-slate-800 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-blue-500/20'
           } ${className}`}
           {...props}
         />

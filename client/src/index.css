@@ -1,27 +1,32 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+/* ── Enable Class-based Dark Mode in Tailwind CSS v4 ── */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ── Custom Theme Tokens ── */
 @layer base {
   :root {
-    --font-sans: 'Plus Jakarta Sans', 'Inter', system-ui, sans-serif;
+    --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-display: 'Outfit', 'Bricolage Grotesque', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
     
-    /* Light Mode Palette */
-    --bg-main: #f8fafc;
+    /* Light Mode Palette: Clean Clinical Emerald & Mint Alabaster */
+    --bg-main: #f8faf9;
     --bg-surface: #ffffff;
-    --bg-surface-hover: #f1f5f9;
+    --bg-surface-hover: #f0fdf4;
     --bg-elevated: #ffffff;
     --border-color: #e2e8f0;
-    --border-hover: #cbd5e1;
+    --border-hover: #a7f3d0;
     
     --text-primary: #0f172a;
-    --text-secondary: #475569;
+    --text-secondary: #334155;
     --text-muted: #64748b;
     
-    --brand-primary: #0d9488;
-    --brand-primary-hover: #0f766e;
-    --brand-primary-light: #f0fdf4;
-    --brand-accent: #2563eb;
+    --brand-primary: #059669;
+    --brand-primary-hover: #047857;
+    --brand-primary-light: #ecfdf5;
+    --brand-accent: #0d9488;
     
     --status-success: #10b981;
     --status-success-bg: #ecfdf5;
@@ -29,44 +34,44 @@
     --status-warning-bg: #fffbeb;
     --status-danger: #ef4444;
     --status-danger-bg: #fef2f2;
-    --status-info: #3b82f6;
-    --status-info-bg: #eff6ff;
+    --status-info: #0ea5e9;
+    --status-info-bg: #f0f9ff;
 
-    --card-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
-    --glass-bg: rgba(255, 255, 255, 0.85);
-    --glass-border: rgba(226, 232, 240, 0.8);
+    --card-shadow: 0 4px 20px -2px rgba(5, 150, 105, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.03);
+    --glass-bg: rgba(255, 255, 255, 0.90);
+    --glass-border: rgba(226, 232, 240, 0.9);
   }
 
   .dark, [data-theme="dark"] {
-    /* Dark Mode Palette */
-    --bg-main: #0b0f19;
-    --bg-surface: #111827;
-    --bg-surface-hover: #1f2937;
-    --bg-elevated: #1e293b;
-    --border-color: rgba(255, 255, 255, 0.08);
-    --border-hover: rgba(14, 165, 233, 0.35);
+    /* Dark Mode Palette: Forest Obsidian & Luminous Mint */
+    --bg-main: #061410;
+    --bg-surface: #0a201a;
+    --bg-surface-hover: #123128;
+    --bg-elevated: #123128;
+    --border-color: rgba(52, 211, 153, 0.15);
+    --border-hover: rgba(52, 211, 153, 0.45);
     
     --text-primary: #f8fafc;
     --text-secondary: #cbd5e1;
     --text-muted: #94a3b8;
     
-    --brand-primary: #14b8a6;
-    --brand-primary-hover: #2dd4bf;
-    --brand-primary-light: rgba(20, 184, 166, 0.15);
-    --brand-accent: #3b82f6;
+    --brand-primary: #10b981;
+    --brand-primary-hover: #34d399;
+    --brand-primary-light: rgba(16, 185, 129, 0.15);
+    --brand-accent: #2dd4bf;
     
     --status-success: #34d399;
-    --status-success-bg: rgba(52, 211, 153, 0.12);
+    --status-success-bg: rgba(52, 211, 153, 0.15);
     --status-warning: #fbbf24;
     --status-warning-bg: rgba(251, 191, 36, 0.12);
     --status-danger: #f87171;
     --status-danger-bg: rgba(248, 113, 113, 0.12);
-    --status-info: #60a5fa;
-    --status-info-bg: rgba(96, 165, 250, 0.12);
+    --status-info: #38bdf8;
+    --status-info-bg: rgba(56, 189, 248, 0.12);
 
-    --card-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.5);
-    --glass-bg: rgba(17, 24, 39, 0.85);
-    --glass-border: rgba(255, 255, 255, 0.08);
+    --card-shadow: 0 10px 35px -5px rgba(0, 0, 0, 0.6);
+    --glass-bg: rgba(10, 32, 26, 0.90);
+    --glass-border: rgba(52, 211, 153, 0.15);
   }
 
   * {
@@ -76,13 +81,23 @@
   html {
     font-family: var(--font-sans);
     scroll-behavior: smooth;
-    color-scheme: light dark;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+  html:not(.dark) {
+    color-scheme: light;
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
   }
 
   body {
     background-color: var(--bg-main);
     color: var(--text-primary);
-    transition: background-color 250ms ease-in-out, color 250ms ease-in-out;
+    transition: background-color 200ms ease, color 200ms ease;
     min-height: 100vh;
     -webkit-font-smoothing: antialiased;
   }
@@ -97,10 +112,65 @@
 }
 
 .text-gradient {
-  background: linear-gradient(135deg, var(--brand-primary), var(--brand-accent));
+  background: linear-gradient(135deg, #059669 0%, #0d9488 50%, #10b981 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+.glow-mesh {
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(5, 150, 105, 0.10) 0px, transparent 50%),
+    radial-gradient(at 85% 20%, rgba(13, 148, 136, 0.08) 0px, transparent 50%),
+    radial-gradient(at 50% 80%, rgba(16, 185, 129, 0.06) 0px, transparent 60%);
+}
+
+.dark .glow-mesh {
+  background-image: 
+    radial-gradient(at 15% 15%, rgba(16, 185, 129, 0.18) 0px, transparent 50%),
+    radial-gradient(at 85% 20%, rgba(45, 212, 191, 0.14) 0px, transparent 50%),
+    radial-gradient(at 50% 80%, rgba(52, 211, 153, 0.08) 0px, transparent 60%);
+}
+
+.linear-card {
+  position: relative;
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+  border: 1px solid var(--border-color);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.linear-card:hover {
+  border-color: rgba(16, 185, 129, 0.4);
+  box-shadow: 0 0 25px -5px rgba(16, 185, 129, 0.2);
+}
+
+/* Game HUD style XP Bar */
+.xp-bar-track {
+  position: relative;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: rgba(100, 116, 139, 0.2);
+}
+.xp-bar-fill {
+  background: linear-gradient(90deg, #059669 0%, #10b981 50%, #2dd4bf 100%);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.5);
+  transition: width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Doodle underline accent */
+.doodle-underline {
+  position: relative;
+  white-space: nowrap;
+}
+.doodle-underline::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -4px;
+  width: 100%;
+  height: 6px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 12' preserveAspectRatio='none'%3E%3Cpath d='M2 9 Q 25 2, 50 8 T 98 4' stroke='%233b82f6' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat center bottom;
+  background-size: 100% 100%;
 }
 
 /* ── Leaflet Dark Mode Tiles ── */
@@ -109,11 +179,11 @@
 }
 
 .dark .leaflet-container {
-  background: #0f172a !important;
+  background: #090d16 !important;
 }
 
 .dark .leaflet-popup-content-wrapper, .dark .leaflet-popup-tip {
-  background-color: #1e293b !important;
+  background-color: #0f172a !important;
   color: #f8fafc !important;
   border: 1px solid rgba(255,255,255,0.1);
 }

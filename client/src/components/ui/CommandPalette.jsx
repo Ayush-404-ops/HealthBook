@@ -104,7 +104,7 @@ export const CommandPalette = () => {
                           key={item.id}
                           type="button"
                           onClick={() => handleSelect(item)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-teal-50 dark:hover:bg-teal-950/40 hover:text-teal-600 dark:hover:text-teal-400 transition-colors text-left"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left"
                         >
                           <Icon className="w-4 h-4 text-slate-400" />
                           <span>{item.label}</span>

@@ -40,12 +40,12 @@ export const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
         <Link to="/" className="flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center text-white shadow-lg shadow-teal-500/20 group-hover:scale-105 transition-transform">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg shadow-emerald-500/25 group-hover:scale-105 transition-transform">
             <HeartPulse className="w-6 h-6 animate-pulse" />
           </div>
           <div className="flex flex-col">
-            <span className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100 group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">
-              Health<span className="text-teal-600 dark:text-teal-400">Book</span>
+            <span className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100 group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+              Health<span className="text-emerald-600 dark:text-emerald-400">Book</span>
             </span>
             <span className="text-[10px] font-semibold tracking-wider text-slate-400 uppercase -mt-1">
               Care Platform
@@ -59,7 +59,7 @@ export const Navbar = () => {
             to="/nearby-hospitals"
             className={`text-xs font-semibold flex items-center gap-1.5 transition-colors ${
               location.pathname === '/nearby-hospitals'
-                ? 'text-teal-600 dark:text-teal-400 font-bold'
+                ? 'text-emerald-600 dark:text-emerald-400 font-bold'
                 : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'
             }`}
           >
@@ -74,16 +74,16 @@ export const Navbar = () => {
                 location.pathname.startsWith('/patient') ||
                 location.pathname.startsWith('/doctor') ||
                 location.pathname.startsWith('/admin')
-                  ? 'text-teal-600 dark:text-teal-400 font-bold'
+                  ? 'text-emerald-600 dark:text-emerald-400 font-bold'
                   : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-slate-100'
               }`}
             >
               {user?.role === 'doctor' ? (
-                <Activity className="w-4 h-4 text-blue-500" />
+                <Activity className="w-4 h-4 text-teal-500" />
               ) : user?.role === 'admin' ? (
                 <Shield className="w-4 h-4 text-purple-500" />
               ) : (
-                <User className="w-4 h-4 text-teal-500" />
+                <User className="w-4 h-4 text-emerald-500" />
               )}
               <span>Dashboard ({user?.name || user?.role})</span>
             </Link>

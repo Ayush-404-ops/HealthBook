@@ -14,7 +14,7 @@ export const Tabs = ({ value, onValueChange, tabs = [], children, className = ''
               value={tab.value}
               className={`relative px-4 py-2 text-xs font-semibold rounded-lg transition-colors select-none focus:outline-none ${
                 isActive
-                  ? 'text-teal-700 dark:text-teal-300'
+                  ? 'text-blue-700 dark:text-blue-300'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
               }`}
             >

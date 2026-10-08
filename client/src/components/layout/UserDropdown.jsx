@@ -17,7 +17,7 @@ export const UserDropdown = () => {
   const getRoleIcon = () => {
     if (user?.role === 'doctor') return <Activity className="w-3.5 h-3.5 text-blue-500" />;
     if (user?.role === 'admin') return <Shield className="w-3.5 h-3.5 text-purple-500" />;
-    return <User className="w-3.5 h-3.5 text-teal-500" />;
+    return <User className="w-3.5 h-3.5 text-blue-500" />;
   };
 
   return (
@@ -55,7 +55,7 @@ export const UserDropdown = () => {
           <DropdownMenu.Item asChild>
             <Link
               to={user?.role === 'doctor' ? '/doctor' : user?.role === 'admin' ? '/admin' : '/patient'}
-              className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 rounded-xl hover:bg-teal-50 dark:hover:bg-teal-950/40 hover:text-teal-600 dark:hover:text-teal-400 transition-colors cursor-pointer outline-none"
+              className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer outline-none"
             >
               <User className="w-4 h-4" />
               <span>Dashboard Overview</span>

@@ -78,12 +78,12 @@ export const DashboardLayout = ({ children, title = 'Dashboard', subtitle }) => 
         {/* Brand */}
         <div className="h-16 px-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-800/80">
           <Link to="/" className="flex items-center gap-2.5 overflow-hidden">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center text-white shrink-0 shadow-md shadow-teal-500/20">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shrink-0 shadow-md shadow-emerald-500/20">
               <HeartPulse className="w-5 h-5 animate-pulse" />
             </div>
             {!collapsed && (
               <span className="text-lg font-black tracking-tight text-slate-900 dark:text-slate-100 truncate">
-                Health<span className="text-teal-600 dark:text-teal-400">Book</span>
+                Health<span className="text-emerald-600 dark:text-emerald-400">Book</span>
               </span>
             )}
           </Link>
@@ -107,12 +107,12 @@ export const DashboardLayout = ({ children, title = 'Dashboard', subtitle }) => 
                 to={item.path}
                 className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold transition-all group ${
                   isActive
-                    ? 'bg-teal-500 text-white shadow-md shadow-teal-500/25 dark:bg-teal-500'
+                    ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/25 dark:bg-emerald-600'
                     : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
                 title={collapsed ? item.label : undefined}
               >
-                <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-teal-500'}`} />
+                <Icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-emerald-500'}`} />
                 {!collapsed && <span className="truncate">{item.label}</span>}
               </Link>
             );
@@ -156,7 +156,7 @@ export const DashboardLayout = ({ children, title = 'Dashboard', subtitle }) => 
                 <span>Home</span>
               </Link>
               <span>/</span>
-              <span className="capitalize text-teal-600 dark:text-teal-400 font-semibold">
+              <span className="capitalize text-emerald-600 dark:text-emerald-400 font-semibold">
                 {user?.role || 'Dashboard'}
               </span>
               {title && (
@@ -247,11 +247,11 @@ export const DashboardLayout = ({ children, title = 'Dashboard', subtitle }) => 
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <Link to="/" className="flex items-center gap-2.5">
-                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-blue-600 flex items-center justify-center text-white">
+                    <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white">
                       <HeartPulse className="w-5 h-5" />
                     </div>
                     <span className="text-lg font-black text-slate-900 dark:text-slate-100">
-                      Health<span className="text-teal-500">Book</span>
+                      Health<span className="text-blue-500">Book</span>
                     </span>
                   </Link>
                   <button
@@ -273,7 +273,7 @@ export const DashboardLayout = ({ children, title = 'Dashboard', subtitle }) => 
                         onClick={() => setMobileDrawerOpen(false)}
                         className="flex items-center gap-3 px-3.5 py-3 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
                       >
-                        <Icon className="w-5 h-5 text-teal-500" />
+                        <Icon className="w-5 h-5 text-blue-500" />
                         <span>{item.label}</span>
                       </Link>
                     );

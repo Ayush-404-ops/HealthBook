@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Tabs, TabContent } from '../components/ui/Tabs';
 import SlotPicker from '../components/SlotPicker';
 import SymptomNavigator from '../components/SymptomNavigator';
+import HealthHabitHUD from '../components/ui/HealthHabitHUD';
 import toast from 'react-hot-toast';
 import {
   Search,
@@ -34,6 +35,8 @@ import {
   Stethoscope,
   ArrowRight,
   ShieldCheck,
+  Flame,
+  Trophy,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -244,7 +247,8 @@ const PatientDashboard = () => {
       subtitle="Find top medical specialists, get AI symptom guidance, and manage consultations."
     >
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+      {/* Overview Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <Card className="p-5 flex items-center gap-4 bg-gradient-to-br from-teal-500/10 to-teal-500/5 border-teal-200 dark:border-teal-800/60">
           <div className="p-3.5 rounded-2xl bg-teal-500 text-white shadow-md shadow-teal-500/20">
             <Calendar className="w-6 h-6" />
@@ -269,6 +273,20 @@ const PatientDashboard = () => {
             </div>
             <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">
               Completed Visits
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-5 flex items-center gap-4 bg-gradient-to-br from-amber-500/10 to-amber-500/5 border-amber-200 dark:border-amber-800/60">
+          <div className="p-3.5 rounded-2xl bg-amber-500 text-white shadow-md shadow-amber-500/20">
+            <Flame className="w-6 h-6 animate-pulse" />
+          </div>
+          <div>
+            <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
+              12 Days
+            </div>
+            <div className="text-xs font-semibold text-amber-700 dark:text-amber-400">
+              Health Activity Streak
             </div>
           </div>
         </Card>
@@ -321,13 +339,14 @@ const PatientDashboard = () => {
         </Card>
       )}
 
-      {/* Main Tabs (Find Specialists vs My Appointments) */}
+      {/* Main Tabs (Find Specialists vs My Appointments vs Wellness Habits) */}
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}
         tabs={[
           { value: 'directory', label: `Find Specialists (${doctors.length})`, icon: Stethoscope },
           { value: 'appointments', label: `My Appointments (${myAppointments.length})`, icon: Calendar, badge: upcomingCount },
+          { value: 'habits', label: 'Wellness Streak & XP', icon: Flame },
         ]}
       >
         {/* TAB 1: Doctor Directory & AI Navigator */}
@@ -647,6 +666,10 @@ const PatientDashboard = () => {
               })}
             </div>
           )}
+        </TabContent>
+        {/* TAB 3: Gamified Health Habits & Streaks */}
+        <TabContent value="habits">
+          <HealthHabitHUD showBadges={true} />
         </TabContent>
       </Tabs>
 

@@ -1,61 +1,51 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
 const ThemeContext = createContext({
-  theme: 'system',
+  theme: 'light',
   resolvedTheme: 'light',
+  toggleTheme: () => {},
   setTheme: () => {},
 });
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setThemeState] = useState(() => {
-    return localStorage.getItem('healthbook-theme') || 'system';
+    const saved = localStorage.getItem('healthbook-theme');
+    if (saved === 'dark' || saved === 'light') return saved;
+    // Default to light mode
+    return 'light';
   });
-
-  const [resolvedTheme, setResolvedTheme] = useState('light');
 
   useEffect(() => {
     const root = document.documentElement;
+    const body = document.body;
 
-    const getSystemTheme = () =>
-      window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-
-    const activeTheme = theme === 'system' ? getSystemTheme() : theme;
-    setResolvedTheme(activeTheme);
-
-    if (activeTheme === 'dark') {
+    if (theme === 'dark') {
       root.classList.add('dark');
       root.setAttribute('data-theme', 'dark');
+      root.style.colorScheme = 'dark';
+      body.classList.add('dark');
     } else {
       root.classList.remove('dark');
       root.setAttribute('data-theme', 'light');
+      root.style.colorScheme = 'light';
+      body.classList.remove('dark');
     }
 
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleChange = () => {
-      if (theme === 'system') {
-        const sys = getSystemTheme();
-        setResolvedTheme(sys);
-        if (sys === 'dark') {
-          root.classList.add('dark');
-          root.setAttribute('data-theme', 'dark');
-        } else {
-          root.classList.remove('dark');
-          root.setAttribute('data-theme', 'light');
-        }
-      }
-    };
-
-    mediaQuery.addEventListener('change', handleChange);
-    return () => mediaQuery.removeEventListener('change', handleChange);
+    localStorage.setItem('healthbook-theme', theme);
   }, [theme]);
 
+  const toggleTheme = () => {
+    setThemeState((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
+
   const setTheme = (newTheme) => {
-    setThemeState(newTheme);
-    localStorage.setItem('healthbook-theme', newTheme);
+    if (newTheme === 'dark' || newTheme === 'light') {
+      setThemeState(newTheme);
+    }
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, resolvedTheme: theme, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

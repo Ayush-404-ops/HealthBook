@@ -22,13 +22,13 @@ export const Button = React.forwardRef(
 
     const variants = {
       primary:
-        'bg-teal-600 hover:bg-teal-700 dark:bg-teal-500 dark:hover:bg-teal-600 text-white shadow-md shadow-teal-500/20 focus:ring-teal-500',
+        'bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-500/25 focus:ring-emerald-500',
       secondary:
-        'bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white shadow-md shadow-blue-500/20 focus:ring-blue-500',
+        'bg-teal-600 hover:bg-teal-700 text-white shadow-md shadow-teal-500/25 focus:ring-teal-500',
       outline:
-        'border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-slate-400',
+        'border border-slate-300 dark:border-slate-700 hover:border-emerald-500 dark:hover:border-emerald-500 hover:bg-emerald-50/50 dark:hover:bg-emerald-950/30 text-slate-700 dark:text-slate-200 focus:ring-emerald-400',
       ghost:
-        'hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 focus:ring-slate-400',
+        'hover:bg-emerald-50/60 dark:hover:bg-emerald-950/30 hover:text-emerald-700 dark:hover:text-emerald-300 text-slate-700 dark:text-slate-300 focus:ring-emerald-400',
       danger:
         'bg-rose-600 hover:bg-rose-700 dark:bg-rose-500 dark:hover:bg-rose-600 text-white shadow-md shadow-rose-500/20 focus:ring-rose-500',
     };

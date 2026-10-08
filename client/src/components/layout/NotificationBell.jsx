@@ -36,7 +36,7 @@ export const NotificationBell = ({ notifications = [] }) => {
       case 'confirmed':
         return <CheckCircle className="w-4 h-4 text-emerald-500" />;
       case 'payment':
-        return <CreditCard className="w-4 h-4 text-teal-500" />;
+        return <CreditCard className="w-4 h-4 text-blue-500" />;
       case 'cancelled':
         return <XCircle className="w-4 h-4 text-rose-500" />;
       default:
@@ -72,7 +72,7 @@ export const NotificationBell = ({ notifications = [] }) => {
             <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
               Notifications
             </span>
-            <span className="text-[10px] font-semibold text-teal-600 dark:text-teal-400 bg-teal-50 dark:bg-teal-950/40 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full">
               {items.length} New
             </span>
           </div>

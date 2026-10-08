@@ -28,7 +28,7 @@ export const Avatar = ({ src, alt = 'Avatar', fallback, size = 'md', className =
         className="w-full h-full object-cover"
       />
       <RadixAvatar.Fallback
-        className="w-full h-full flex items-center justify-center font-semibold text-teal-700 dark:text-teal-300 bg-teal-50 dark:bg-teal-950/40"
+        className="w-full h-full flex items-center justify-center font-semibold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40"
       >
         {getInitials(fallback || alt)}
       </RadixAvatar.Fallback>
