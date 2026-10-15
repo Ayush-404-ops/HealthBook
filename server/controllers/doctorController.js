@@ -44,7 +44,7 @@ exports.getDoctors = async (req, res) => {
 
     if (name) {
       doctors = doctors.filter((d) =>
-        d.user.name.toLowerCase().includes(name.toLowerCase())
+        (d.user?.name || '').toLowerCase().includes(String(name).toLowerCase())
       );
     }
 

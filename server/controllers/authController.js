@@ -34,10 +34,17 @@ exports.register = async (req, res) => {
   try {
     const { name, email, password, role, phone, specialty, fee, experienceYears } = req.body;
 
+    if (!name || !email || !password) {
+      return res.status(400).json({ success: false, message: 'Name, email and password are required' });
+    }
+    if (String(password).length < 6) {
+      return res.status(400).json({ success: false, message: 'Password must be at least 6 characters' });
+    }
+
     const allowedRoles = ['patient', 'doctor'];
     const userRole = allowedRoles.includes(role) ? role : 'patient';
 
-    const existing = await User.findOne({ email: email.toLowerCase().trim() });
+    const existing = await User.findOne({ email: String(email).toLowerCase().trim() });
     if (existing) {
       return res.status(409).json({ success: false, message: 'Email is already in use. Please sign in instead.' });
     }

@@ -422,12 +422,9 @@ export default function NearbyHospitals() {
           </MapContainer>
 
           {/* Bottom Floating Route Info Bar */}
-          <AnimatePresence>
+          <>
             {(routeLoading || routeInfo || routeError) && (
-              <motion.div
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: 30 }}
+              <div
                 className="absolute bottom-6 left-4 right-4 md:left-6 md:right-6 z-30 max-w-2xl mx-auto"
               >
                 <Card glass className="p-4 shadow-2xl border-teal-500/40 relative">
@@ -495,9 +492,9 @@ export default function NearbyHospitals() {
                     </div>
                   )}
                 </Card>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </>
         </div>
       </div>
     </PublicLayout>

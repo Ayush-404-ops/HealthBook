@@ -470,12 +470,7 @@ const PatientDashboard = () => {
                 }
               >
                 {filteredDoctors.map((doctor) => (
-                  <motion.div
-                    key={doctor._id}
-                    initial={{ opacity: 0, y: 15 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3 }}
-                  >
+                  <div key={doctor._id}>
                     <Card className="p-6 flex flex-col justify-between h-full hover:border-teal-500/50 transition-all">
                       <div className="space-y-4">
                         <div className="flex items-start justify-between gap-3">
@@ -523,7 +518,7 @@ const PatientDashboard = () => {
                         Book Consultation
                       </Button>
                     </Card>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             )}
