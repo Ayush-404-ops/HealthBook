@@ -34,13 +34,13 @@ export const NotificationBell = ({ notifications = [] }) => {
   const getIcon = (type) => {
     switch (type) {
       case 'confirmed':
-        return <CheckCircle className="w-4 h-4 text-emerald-500" />;
+        return <CheckCircle className="w-4 h-4 text-teal-500" />;
       case 'payment':
-        return <CreditCard className="w-4 h-4 text-blue-500" />;
+        return <CreditCard className="w-4 h-4 text-sky-500" />;
       case 'cancelled':
         return <XCircle className="w-4 h-4 text-rose-500" />;
       default:
-        return <Calendar className="w-4 h-4 text-blue-500" />;
+        return <Calendar className="w-4 h-4 text-sky-500" />;
     }
   };
 
@@ -54,9 +54,6 @@ export const NotificationBell = ({ notifications = [] }) => {
         >
           <Bell className="w-4 h-4" />
           {!read && (
-            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 animate-ping" />
-          )}
-          {!read && (
             <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500" />
           )}
         </button>
@@ -66,13 +63,13 @@ export const NotificationBell = ({ notifications = [] }) => {
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className="z-50 w-80 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95"
+          className="z-50 w-80 p-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg"
         >
           <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100 dark:border-slate-800">
             <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
               Notifications
             </span>
-            <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/40 px-2 py-0.5 rounded-full">
+            <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded-full">
               {items.length} New
             </span>
           </div>

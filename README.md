@@ -1,65 +1,130 @@
-# 🏥 HealthBook — Full Stack Doctor Appointment & Healthcare Navigation System
+# 🏥 HealthBook — Intelligent Doctor Appointment & Healthcare Platform
 
-A production-ready **MERN Stack** healthcare web application featuring AI-powered symptom triage, conflict-free doctor appointment scheduling, integrated Razorpay payment verification with automated refunds, and OpenStreetMap emergency hospital routing using Dijkstra's shortest-path algorithm.
+<div align="center">
+
+![React](https://img.shields.io/badge/React-19-61DAFB?style=flat-square&logo=react&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-18+-339933?style=flat-square&logo=node.js&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-Mongoose_8-47A248?style=flat-square&logo=mongodb&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/TailwindCSS-v4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![Framer Motion](https://img.shields.io/badge/Framer_Motion-14-EF008F?style=flat-square&logo=framer&logoColor=white)
+![Gemini AI](https://img.shields.io/badge/Gemini-2.0_Flash-4285F4?style=flat-square&logo=google&logoColor=white)
+![Razorpay](https://img.shields.io/badge/Razorpay-HMAC_Verified-3395FF?style=flat-square&logo=razorpay&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat-square)
+
+**A production-grade MERN Stack healthcare ecosystem** featuring Gemini AI symptom triage, conflict-free appointment scheduling with real-time slot locking, Razorpay HMAC payment escrow with automated refunds, Dijkstra shortest-path emergency routing via OpenStreetMap/OSRM, and gamified Health XP progression inspired by HabitKit & Habitica.
+
+</div>
 
 ---
 
 ## 📑 Table of Contents
 
-- [Key Features](#-key-features)
-- [System Architecture](#-system-architecture)
+- [Live Features](#-live-features)
+- [UI & Design System](#-ui--design-system)
+- [System Architecture](#%EF%B8%8F-system-architecture)
 - [Tech Stack](#-tech-stack)
 - [Project Structure](#-project-structure)
 - [Prerequisites](#-prerequisites)
-- [Getting Started](#-getting-started)
-  - [1. Backend Setup](#1-backend-setup)
-  - [2. Frontend Setup](#2-frontend-setup)
-  - [3. Seed Admin Account](#3-seed-admin-account)
+- [Getting Started](#%EF%B8%8F-getting-started)
 - [Environment Configuration](#-environment-configuration)
-  - [Backend (`server/.env`)](#backend-serverenv)
-  - [Frontend (`client/.env`)](#frontend-clientenv)
 - [Default Credentials](#-default-credentials)
 - [API Reference](#-api-reference)
-- [Security & Architecture Highlights](#-security--architecture-highlights)
+- [Security Highlights](#-security-highlights)
 - [User Roles & Workflows](#-user-roles--workflows)
+- [UI Component Library](#-ui-component-library)
 - [License](#-license)
 
 ---
 
-## ✨ Key Features
+## ✨ Live Features
 
-### 1. 🤖 AI Symptom Navigator
-- Natural language symptom triage powered by **Google Gemini 2.0 Flash**.
-- Recommends the appropriate medical specialty (e.g., Cardiologist, Dermatologist, Orthopedist) and severity assessment.
-- **Intelligent Fallback Rule Engine**: Seamless offline keyword matching if external API keys are unavailable or rate-limited.
+### 1. 🤖 AI Symptom Navigator (Gemini 2.0 Flash)
+- Natural-language symptom triage powered by **Google Gemini 2.0 Flash**.
+- Recommends the appropriate medical specialty (Cardiologist, Dermatologist, Orthopedist, etc.) with severity assessment.
+- **Intelligent Fallback Rule Engine**: Offline keyword matching when API keys are unavailable or rate-limited — zero disruption to users.
+- Live typewriter animation in the hero section simulates real Gemini AI interactions.
 
 ### 2. 📅 Conflict-Free Appointment Scheduling
-- **Dynamic Slot Generation**: Automatically splits doctor working hours into slots based on their custom `slotDurationMinutes`.
-- **Double-Booking Prevention**: MongoDB partial unique compound index (`{ doctor: 1, date: 1, startTime: 1 }` on `pending` and `confirmed` appointments) rejects simultaneous overlapping bookings.
-- **Past-Time Validation**: Server-side checks reject dates in the past or time slots that have already elapsed today.
+- **Dynamic Slot Generation**: Auto-splits doctor working hours into precise `slotDurationMinutes` intervals.
+- **Double-Booking Prevention**: MongoDB partial unique compound index on `{ doctor, date, startTime }` for `pending`/`confirmed` states rejects simultaneous race conditions atomically.
+- **Past-Time Validation**: Server-side rejection of elapsed slots — no stale bookings possible.
+- **Animated Slot Picker**: Live 30-min slot grid with auto-cycling highlight and real-time availability indicators.
 
-### 3. 💳 Razorpay Payments & Refund Lifecycle
-- **Order Generation**: Creates INR payment orders via the Razorpay SDK.
-- **HMAC-SHA256 Signature Verification**: Cryptographically verifies payment signatures on the backend before confirming slots.
-- **Automated Refund Logic**: When a paid appointment is cancelled by either the patient or the doctor, the system initiates a Razorpay refund and updates the payment status to `refunded`.
+### 3. 💳 Razorpay Payment Escrow & Refund Lifecycle
+- **Order Generation**: Creates INR payment orders via the official Razorpay SDK.
+- **HMAC-SHA256 Signature Verification**: Cryptographically verifies payment authenticity on the backend before confirming any slot.
+- **Automated Refund Logic**: Cancellation by patient or doctor instantly triggers Razorpay refund and updates payment status to `refunded`.
 
 ### 4. 🔄 Strict Appointment State Machine
-- Enforces linear state transitions:
-  - `pending` ➔ `confirmed` or `cancelled`
-  - `confirmed` ➔ `completed` or `cancelled`
-  - `completed` & `cancelled` are terminal states.
-- Doctors cannot mark an appointment `completed` unless it is both **confirmed** and **paid**.
+- Linear, enforced state transitions:
+  - `pending` → `confirmed` or `cancelled`
+  - `confirmed` → `completed` or `cancelled`
+  - `completed` & `cancelled` are terminal (immutable) states.
+- Doctors cannot mark `completed` unless the slot is both **confirmed** and **paid**.
 
 ### 5. 🗺️ Emergency Hospital Locator & Dijkstra Pathfinding
-- Real-time GPS detection using browser Geolocation API.
-- Live OpenStreetMap queries via **Overpass API** to discover hospitals within a 5 km radius.
-- Interactive **Leaflet** map with custom user, hospital, and destination markers.
-- **Multi-Alternative Road Network Graph**: Queries the **OSRM Driving Engine** with `alternatives=true` to fetch route options, merges shared intersection waypoints into an adjacency graph, and executes **Dijkstra's Algorithm** to calculate and verify the optimal driving path through the street network.
+- Real-time GPS detection via browser Geolocation API.
+- Live OpenStreetMap **Overpass API** queries — discovers hospitals within a 5 km radius.
+- Interactive **Leaflet** map with custom SVG markers for user position, hospitals, and optimal destination.
+- **Multi-Alternative Dijkstra Routing**: Queries OSRM `alternatives=true`, merges shared intersection waypoints into an adjacency graph, and runs custom Dijkstra to compute the verified optimal driving route.
 
-### 6. 🛡️ Role-Based Access Control (RBAC)
-- Role segregation for `patient`, `doctor`, and `admin`.
-- Centralized role-to-dashboard navigation resolver ([roleUtils.js](client/src/utils/roleUtils.js)).
-- Route-level protection via `ProtectedRoute` redirecting unauthorized access to `/unauthorized`.
+### 6. 🎮 Gamified Health XP & Wellness Streak System
+- Inspired by **HabitKit**, **Habitica**, and **Forest App** UI patterns.
+- GitHub-style **Activity Heatmap** — 5-week intensity grid of health check-ins, vitals, and consultations.
+- **XP Progression Bar**: Earn Health XP by fulfilling appointments, logging vitals, and maintaining hydration streaks.
+- **Vitality Levels**: Progress from Novice to Vitality Sentinel with unlockable clinical milestone badges.
+- **Interactive Daily Quests**: Toggle quest completion and earn XP in real time with toast notifications.
+- **Wellness Tree Growth**: Visual tree stages (sprout → sapling → blooming bonsai) tied to streak count.
+
+### 7. 🛡️ Role-Based Access Control (RBAC)
+- Three distinct roles: `patient`, `doctor`, `admin`.
+- Centralized role-to-dashboard path resolver (`roleUtils.js`).
+- `ProtectedRoute` component guards all dashboard routes with redirect to `/unauthorized`.
+
+---
+
+## 🎨 UI & Design System
+
+### Design Philosophy
+The frontend UI was rebuilt from scratch with a **premium, gamified healthcare aesthetic** inspired by:
+- **[Lapa Ninja](https://www.lapa.ninja/category/open-source/)** — Landing page rhythm, section spacing, and scroll reveal patterns.
+- **[Webflow](https://webflow.com)** — Hero reveal animations and slide-in motion choreography.
+- **[Interface In Game](https://interfaceingame.com/screenshots/)** — HUD panels, XP bars, badge systems, and gamified dashboard elements.
+- **[Habitica](https://habitica.com)** — Gamified quest system, XP coins, and reward progression.
+- **[HabitKit](https://www.habitkit.app/)** — GitHub-style heatmap streaks and activity visualization.
+
+### Animation System (Framer Motion 14)
+- **Hero Left Panel**: Staggered `fadeUp` text reveals using `staggerContainer` variants, animated feature pill tags with `backOut` spring entrance, floating animated stat counters with `useCountUp` scroll hook.
+- **Hero Right Panel** (`HeroMockup`): Live AI typewriter cycling 4 symptom queries, animated heartbeat SVG `pathLength` draw, auto-cycling slot highlight every 2.2s, XP progress bar animation, success state with spring scale, 3 floating gamified badges (Gemini AI pulse, Zero Queue rock rotation, +150 XP slide-in).
+- **Scroll Sections**: All sections use `whileInView` with `once: true` viewport triggers.
+- **Micro-animations**: Icon rotation on stat cards, hover lift on specialty cards, hover slide on feature bullets.
+
+### Dark / Light Mode
+- One-click toggle between dark and light — no system preference dependency.
+- `ThemeContext` persists preference to `localStorage`.
+- Custom CSS variables + Tailwind v4 `dark:` utilities across all 18 UI components.
+
+### Component Library (`/components/ui/`)
+| Component | Description |
+|---|---|
+| `Button` | Primary, outline, ghost, danger variants with icon support |
+| `Card` | Base card with optional `glass` variant |
+| `Badge` | Status badges: paid, pending, confirmed, completed, cancelled |
+| `Input` / `Textarea` / `Select` | Form inputs with error state and blue focus ring |
+| `Avatar` | User avatar with image fallback initials |
+| `Modal` | Accessible dialog using Radix UI |
+| `ConfirmDialog` | Destructive action confirmation modal |
+| `CommandPalette` | ⌘K searchable command launcher |
+| `Tabs` | Radix-powered tab navigation |
+| `Table` | Sortable data table |
+| `Pagination` | Page navigation with ellipsis |
+| `Skeleton` | Content loading placeholder |
+| `EmptyState` | Empty data illustrations |
+| `Tooltip` | Radix-powered hover tooltip |
+| `ThemeToggle` | Animated sun/moon dark mode toggle |
+| `HealthHabitHUD` | Full gamification panel (heatmap, quests, badges, XP bar, tree) |
+| `NotificationBell` | Badge-count notification dropdown |
+| `UserDropdown` | Avatar + role pill + settings menu |
 
 ---
 
@@ -67,45 +132,50 @@ A production-ready **MERN Stack** healthcare web application featuring AI-powere
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│                   React 19 + Vite UI                   │
-│   (AuthContext • Leaflet • React Router • Hot Toast)   │
-└───────────────────────────┬────────────────────────────┘
-                            │ HTTP + Credentials (JWT Cookie)
-                            ▼
+│        React 19 + Vite + TailwindCSS v4 Frontend           │
+│  Framer Motion 14 • Lucide Icons • Radix UI Primitives    │
+│  AuthContext • ThemeContext • React Router v7 • Recharts   │
+└────────────────────────────┴─────────────────────────┘
+                          │ HTTP + JWT HttpOnly Cookie
+                          ▼
 ┌────────────────────────────────────────────────────────┐
-│                   Express.js Server                    │
-│  ├── Rate Limiter (/api/auth/login)                    │
-│  ├── Auth & Role RBAC Middleware                       │
-│  ├── Appointment State Machine & Validator             │
-│  └── Sanitized Global Error Handler                    │
-└───────┬───────────────────┬────────────────────┬───────┘
-        │                   │                    │
-        ▼                   ▼                    ▼
-┌──────────────┐    ┌───────────────┐    ┌───────────────┐
-│   MongoDB    │    │ Razorpay API  │    │ Google Gemini │
-│   Mongoose   │    │  (Orders,     │    │  2.0 Flash    │
-│  (Indexed)   │    │   Refunds)    │    │  (AI Triage)  │
-└──────────────┘    └───────────────┘    └───────────────┘
+│              Express.js REST API Server                     │
+│  ├── Rate Limiter • Auth Middleware • RBAC Guards          │
+│  ├── Appointment State Machine & Slot Validator          │
+│  └── Sanitized Global Error Handler                       │
+└────────┴─────────────┴────────────────┴─────────────┘
+        │              │               │            │
+        ▼              ▼               ▼            ▼
+┌──────────┐ ┌──────────┐ ┌───────────┐ ┌───────────┐
+│ MongoDB  │ │ Razorpay │ │Google Gemini│ │  Overpass  │
+│ Mongoose │ │ Orders & │ │ 2.0 Flash  │ │  API+OSRM  │
+│ Indexed  │ │ Refunds  │ │ AI Triage  │ │  Dijkstra  │
+└──────────┘ └──────────┘ └───────────┘ └───────────┘
 ```
 
 ---
 
 ## 🚀 Tech Stack
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| **Frontend Framework** | React 19 + Vite | High-performance SPA with fast HMR |
-| **Routing** | React Router v7 | Declarative nested and protected routes |
-| **Maps & Spatial** | Leaflet & React-Leaflet | Interactive emergency hospital mapping |
-| **HTTP Client** | Axios | Configured with `withCredentials: true` |
-| **Icons & Feedback** | React Icons (Feather) & React Hot Toast | Clean UI iconography and notification toasts |
-| **Backend Runtime** | Node.js & Express 4 | RESTful API server |
-| **Database & ODM** | MongoDB & Mongoose 8 | Document store with compound unique indexes |
-| **Authentication** | JWT & bcryptjs | Stateless auth via `httpOnly` secure cookies |
-| **Security** | Express Rate Limit & Custom ReDoS Sanitizer | Brute-force & regex attack mitigation |
-| **Payment Gateway** | Razorpay SDK | Payment order creation, verification & refunds |
-| **AI / LLM** | Google Generative AI SDK (`gemini-2.0-flash`) | Symptom analysis and doctor recommendations |
-| **Spatial APIs** | Overpass API & Project OSRM | Live hospital discovery & road routing |
+| Layer | Technology | Version | Purpose |
+|---|---|:---:|---|
+| **Frontend Framework** | React + Vite | 19 / 8 | SPA with fast HMR |
+| **Routing** | React Router | v7 | Declarative nested & protected routes |
+| **Styling** | TailwindCSS | v4 | Utility-first CSS with `dark:` variants |
+| **Animations** | Framer Motion | 14 | Page reveals, scroll triggers, micro-animations |
+| **UI Primitives** | Radix UI | — | Dialog, Dropdown, Tabs, Avatar, Tooltip |
+| **Icons** | Lucide React | 1.50 | Consistent icon set across all components |
+| **Maps & Spatial** | Leaflet + React-Leaflet | 1.9 / 5.0 | Interactive emergency hospital mapping |
+| **Charts** | Recharts | 3 | Doctor dashboard analytics |
+| **HTTP Client** | Axios | 1.19 | `withCredentials: true` JWT cookie transport |
+| **Notifications** | React Hot Toast | 2.6 | XP toast, success/error feedback |
+| **Backend Runtime** | Node.js + Express | 18+ / 4 | RESTful API server |
+| **Database & ODM** | MongoDB + Mongoose | — / 8 | Document store with compound unique indexes |
+| **Authentication** | JWT + bcryptjs | — | Stateless auth via `httpOnly` secure cookies |
+| **Security** | Express Rate Limit | — | Brute-force & ReDoS mitigation |
+| **Payment Gateway** | Razorpay SDK | — | Order creation, HMAC verification & refunds |
+| **AI / LLM** | Google Generative AI SDK | gemini-2.0-flash | Symptom triage and specialist matching |
+| **Spatial APIs** | Overpass API + OSRM | — | Hospital discovery & Dijkstra road routing |
 
 ---
 
@@ -116,17 +186,17 @@ HealthBook/
 ├── server/
 │   ├── controllers/
 │   │   ├── adminController.js         # Stats, doctor approval & rejection
-│   │   ├── aiController.js            # Gemini symptom analysis & rule fallback
-│   │   ├── appointmentController.js   # Booking, cancellation, doctor schedule
-│   │   ├── authController.js          # Registration, login, logout, getMe
-│   │   ├── doctorController.js        # Doctor discovery, profile, slot calculation
+│   │   ├── aiController.js            # Gemini triage + offline rule fallback
+│   │   ├── appointmentController.js   # Booking, state machine, cancellation
+│   │   ├── authController.js          # Register, login, logout, getMe
+│   │   ├── doctorController.js        # Discovery, profile, dynamic slot calc
 │   │   └── paymentController.js       # Razorpay orders, HMAC verify & refunds
 │   ├── middleware/
 │   │   └── auth.js                    # JWT verify & authorize(roles...)
 │   ├── models/
-│   │   ├── Appointment.js             # Appointment schema + unique slot index
-│   │   ├── Doctor.js                  # Doctor profile & availability rules
-│   │   └── User.js                    # User schema with bcrypt password hashing
+│   │   ├── Appointment.js             # Schema + unique partial slot index
+│   │   ├── Doctor.js                  # Profile, availability rules, fee
+│   │   └── User.js                    # User schema + bcrypt password hook
 │   ├── routes/
 │   │   ├── adminRoutes.js
 │   │   ├── aiRoutes.js
@@ -135,40 +205,50 @@ HealthBook/
 │   │   ├── doctorRoutes.js
 │   │   └── paymentRoutes.js
 │   ├── scripts/
-│   │   └── seedAdmin.js               # Creates default admin user
-│   ├── .env.example                   # Backend environment template
-│   ├── package.json
-│   └── server.js                      # Server startup & DB connection
+│   │   └── seedAdmin.js               # Seeds default admin account
+│   ├── .env.example
+│   └── server.js                      # Express bootstrap & DB connection
 │
 └── client/
     ├── src/
     │   ├── api/
     │   │   └── axios.js               # Axios instance with baseURL & interceptor
     │   ├── components/
-    │   │   ├── Navbar.jsx             # Top navigation with role links & emergency
-    │   │   ├── ProtectedRoute.jsx     # Route guard with /unauthorized redirect
-    │   │   ├── SlotPicker.jsx         # Date-picker and dynamic time slot grid
-    │   │   ├── Spinner.jsx            # Loading animation
-    │   │   └── SymptomNavigator.jsx   # AI symptom input & specialty tagger
+    │   │   ├── auth/                  # Auth guard wrappers
+    │   │   ├── landing/
+    │   │   │   └── BentoFeatures.jsx  # Interactive bento grid feature section
+    │   │   ├── layout/
+    │   │   │   ├── DashboardLayout.jsx # Sidebar + topbar dashboard shell
+    │   │   │   ├── Footer.jsx          # Site footer
+    │   │   │   ├── Navbar.jsx          # Public nav with dark mode toggle
+    │   │   │   ├── NotificationBell.jsx # Notification badge dropdown
+    │   │   │   ├── PublicLayout.jsx    # Wraps Navbar + Footer
+    │   │   │   └── UserDropdown.jsx    # Avatar + role + logout menu
+    │   │   ├── ui/                    # 18-component design system (see table above)
+    │   │   ├── ErrorBoundary.jsx      # React error boundary wrapper
+    │   │   ├── ProtectedRoute.jsx     # Role-based route guard
+    │   │   ├── SlotPicker.jsx         # Date-picker + animated slot grid
+    │   │   └── SymptomNavigator.jsx   # AI symptom input & specialty result
     │   ├── context/
-    │   │   └── AuthContext.jsx        # Global user session & auth methods
+    │   │   ├── AuthContext.jsx        # Global user session & auth methods
+    │   │   └── ThemeContext.jsx       # Dark/light toggle with localStorage
     │   ├── pages/
-    │   │   ├── AdminDashboard.jsx     # Doctor verification & analytics
+    │   │   ├── AdminDashboard.jsx     # Doctor verification & platform analytics
     │   │   ├── DoctorDashboard.jsx    # Schedule editor & patient appointments
-    │   │   ├── Landing.jsx            # Hero page with feature highlights
+    │   │   ├── Landing.jsx            # Animated hero + bento + HUD + FAQ
     │   │   ├── Login.jsx              # Sign-in form
-    │   │   ├── NearbyHospitals.jsx    # Live map, Overpass query, Dijkstra path
-    │   │   ├── NotFound.jsx           # 404 page
+    │   │   ├── NearbyHospitals.jsx    # Live Leaflet map + Overpass + Dijkstra
+    │   │   ├── NotFound.jsx           # 404 screen
     │   │   ├── PatientDashboard.jsx   # Doctor directory, booking & payment
-    │   │   ├── Register.jsx           # Patient/Doctor registration
+    │   │   ├── Register.jsx           # Patient / Doctor registration
     │   │   └── Unauthorized.jsx       # 403 access denied screen
     │   ├── utils/
-    │   │   ├── dijkstra.js            # Graph-based Dijkstra shortest path
-    │   │   └── roleUtils.js           # Centralized role ➔ path mapping
+    │   │   ├── dijkstra.js            # Custom Dijkstra shortest-path algorithm
+    │   │   └── roleUtils.js           # Centralized role -> dashboard path map
     │   ├── App.jsx                    # Route switchboard
-    │   ├── index.css                  # Design system tokens and styles
+    │   ├── index.css                  # Design tokens, animations, glow utilities
     │   └── main.jsx
-    ├── .env.example                   # Client environment template
+    ├── .env.example
     ├── index.html
     ├── package.json
     └── vite.config.js
@@ -178,56 +258,49 @@ HealthBook/
 
 ## 📦 Prerequisites
 
-Ensure you have the following installed on your system:
-- **Node.js**: `v18.x` or higher
-- **npm**: `v9.x` or higher
-- **MongoDB**: Local MongoDB instance running on `localhost:27017` or a MongoDB Atlas connection string
+Ensure the following are installed:
+
+- **Node.js** `v18.x` or higher
+- **npm** `v9.x` or higher
+- **MongoDB** — Local instance on `localhost:27017` **or** a MongoDB Atlas connection string
 
 ---
 
 ## ⚙️ Getting Started
 
-### 1. Backend Setup
+### 1. Clone & Navigate
 
 ```bash
-# Navigate to the server directory
+git clone <your-repo-url>
+cd HealthBook
+```
+
+### 2. Backend Setup
+
+```bash
 cd server
-
-# Install backend dependencies
 npm install
-
-# Create environment configuration
 cp .env.example .env
-
-# Start server in development mode (with nodemon)
+# Fill in your values (see Environment Configuration below)
 npm run dev
 ```
 
-The backend server will start on **`http://localhost:5000`**.
+Backend starts on **`http://localhost:5000`**.
 
-### 2. Frontend Setup
+### 3. Frontend Setup
 
-In a new terminal window:
+Open a new terminal:
 
 ```bash
-# Navigate to the client directory
 cd client
-
-# Install frontend dependencies
 npm install
-
-# Create environment configuration (optional)
 cp .env.example .env
-
-# Start the Vite development server
 npm run dev
 ```
 
-The client app will launch at **`http://localhost:5173`**.
+Frontend launches at **`http://localhost:5173`**.
 
-### 3. Seed Admin Account
-
-To seed the initial administrator user into your database:
+### 4. Seed Admin Account
 
 ```bash
 cd server
@@ -242,36 +315,36 @@ npm run seed:admin
 
 | Variable | Required | Default | Description |
 |---|:---:|---|---|
-| `PORT` | No | `5000` | Port on which Express server listens |
+| `PORT` | No | `5000` | Express server port |
 | `MONGO_URI` | **Yes** | `mongodb://localhost:27017/healthbook` | MongoDB connection string |
-| `JWT_SECRET` | **Yes** | — | Strong secret for signing auth tokens |
-| `JWT_EXPIRES_IN` | No | `7d` | Token expiry duration |
-| `CLIENT_URL` | No | `http://localhost:5173` | Allowed CORS origin |
+| `JWT_SECRET` | **Yes** | — | Strong secret for JWT signing |
+| `JWT_EXPIRES_IN` | No | `7d` | Token TTL |
+| `CLIENT_URL` | No | `http://localhost:5173` | CORS allowed origin |
 | `RAZORPAY_KEY_ID` | Optional | — | Razorpay test Key ID |
 | `RAZORPAY_KEY_SECRET` | Optional | — | Razorpay test Key Secret |
-| `GEMINI_API_KEY` | Optional | — | Google Gemini API key for AI symptom triage |
+| `GEMINI_API_KEY` | Optional | — | Google Gemini API key |
 
-> **Note on Optional Keys:**
-> - If `RAZORPAY_KEY_ID` is omitted, the app runs normally, but checkout requests will simulate errors.
-> - If `GEMINI_API_KEY` is omitted, the symptom navigator automatically switches to its offline rule-based classification engine.
+> **Optional keys behaviour:**
+> - Without `RAZORPAY_KEY_ID` — app runs normally; checkout requests simulate graceful errors.
+> - Without `GEMINI_API_KEY` — symptom navigator automatically switches to the built-in offline rule engine.
 
 ### Frontend (`client/.env`)
 
 | Variable | Required | Default | Description |
 |---|:---:|---|---|
-| `VITE_API_URL` | No | `http://localhost:5000/api` | Base URL for backend API requests |
+| `VITE_API_URL` | No | `http://localhost:5000/api` | Backend API base URL |
 
 ---
 
 ## 👤 Default Credentials
 
-After running `npm run seed:admin` in the `server` directory, you can sign in with:
+After running `npm run seed:admin`:
 
 | Role | Email | Password | Dashboard URL |
 |---|---|---|---|
-| **Admin** | `admin@healthbook.com` | `Admin@1234` | `http://localhost:5173/admin` |
+| **Admin** | `admin@healthbook.com` | `Admin@1234` | `/admin` |
 
-To test Patient and Doctor functionality, simply click **"Register"** on the frontend navigation bar and select either **"Patient"** or **"Doctor"**.
+Register new **Patient** or **Doctor** accounts via the public `/register` page.
 
 ---
 
@@ -280,83 +353,109 @@ To test Patient and Doctor functionality, simply click **"Register"** on the fro
 ### Authentication (`/api/auth`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/api/auth/register` | Public | Register a new user (`patient` or `doctor`) |
-| `POST` | `/api/auth/login` | Public (Rate Limited) | Sign in and set HttpOnly auth cookie |
-| `POST` | `/api/auth/logout` | Public | Invalidate auth cookie |
-| `GET` | `/api/auth/me` | Authenticated | Retrieve current session profile |
+| `POST` | `/api/auth/register` | Public | Register patient or doctor |
+| `POST` | `/api/auth/login` | Public · Rate-Limited | Sign in, set HttpOnly cookie |
+| `POST` | `/api/auth/logout` | Public | Clear auth cookie |
+| `GET` | `/api/auth/me` | Authenticated | Current session profile |
 
 ### Doctors (`/api/doctors`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/doctors` | Public | List approved doctors (with specialty, name & fee filters) |
-| `GET` | `/api/doctors/:id` | Public | Retrieve a doctor's public profile |
-| `GET` | `/api/doctors/:id/slots` | Public | Compute open slots for a doctor on `?date=YYYY-MM-DD` |
-| `GET` | `/api/doctors/me/profile` | Doctor | Retrieve current doctor's own profile and schedule |
-| `PUT` | `/api/doctors/profile` | Doctor | Update bio, consultation fee, slot duration & availability |
+| `GET` | `/api/doctors` | Public | List approved doctors (name, specialty, fee filters) |
+| `GET` | `/api/doctors/:id` | Public | Doctor public profile |
+| `GET` | `/api/doctors/:id/slots` | Public | Open slots for `?date=YYYY-MM-DD` |
+| `GET` | `/api/doctors/me/profile` | Doctor | Own profile & schedule |
+| `PUT` | `/api/doctors/profile` | Doctor | Update bio, fee, slot duration & availability |
 
 ### Appointments (`/api/appointments`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/api/appointments` | Patient | Book an appointment slot |
-| `GET` | `/api/appointments/mine` | Patient | Retrieve patient's appointments |
-| `PATCH` | `/api/appointments/:id/cancel` | Patient | Cancel appointment and trigger payment refund |
-| `GET` | `/api/appointments/doctor` | Doctor | Retrieve all appointments booked with doctor |
-| `PATCH` | `/api/appointments/:id/status` | Doctor | Update status (`confirmed`, `completed`, `cancelled`) |
+| `POST` | `/api/appointments` | Patient | Book a slot |
+| `GET` | `/api/appointments/mine` | Patient | Patient's appointments |
+| `PATCH` | `/api/appointments/:id/cancel` | Patient | Cancel + trigger refund |
+| `GET` | `/api/appointments/doctor` | Doctor | All appointments for doctor |
+| `PATCH` | `/api/appointments/:id/status` | Doctor | Update status |
 
 ### Payments (`/api/payments`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/api/payments/create-order` | Patient | Generate a Razorpay INR order for an appointment |
-| `POST` | `/api/payments/verify` | Patient | Verify Razorpay HMAC signature & mark slot confirmed |
-| `POST` | `/api/payments/refund` | Authorized | Process refund for a paid appointment |
+| `POST` | `/api/payments/create-order` | Patient | Generate Razorpay INR order |
+| `POST` | `/api/payments/verify` | Patient | HMAC verify + confirm slot |
+| `POST` | `/api/payments/refund` | Authorized | Process Razorpay refund |
 
 ### AI Navigator (`/api/ai`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `POST` | `/api/ai/navigate` | Public | Submit symptom text for specialty recommendation |
+| `POST` | `/api/ai/navigate` | Public | Symptom text → specialty recommendation |
 
 ### Administration (`/api/admin`)
 | Method | Endpoint | Access | Description |
 |---|---|---|---|
-| `GET` | `/api/admin/stats` | Admin | Total counts for patients, doctors, appointments & revenue |
-| `GET` | `/api/admin/doctors` | Admin | List doctors filtered by approval status |
-| `PUT` | `/api/admin/doctors/:id/approve` | Admin | Approve pending doctor application |
-| `PUT` | `/api/admin/doctors/:id/reject` | Admin | Reject / suspend doctor account |
+| `GET` | `/api/admin/stats` | Admin | Platform-wide metrics & revenue |
+| `GET` | `/api/admin/doctors` | Admin | Doctors by approval status |
+| `PUT` | `/api/admin/doctors/:id/approve` | Admin | Approve pending doctor |
+| `PUT` | `/api/admin/doctors/:id/reject` | Admin | Reject / suspend doctor |
 
 ---
 
-## 🔒 Security & Architecture Highlights
+## 🔒 Security Highlights
 
-1. **Brute-Force Protection**: The `/api/auth/login` route is protected by `express-rate-limit` (maximum 10 login attempts per 15-minute window per IP).
-2. **ReDoS Attack Mitigation**: User input in `$regex` queries (such as the doctor specialty filter) is automatically sanitized to escape metacharacters (`/[.*+?^${}()|[\]\\]/g`).
-3. **Data Leakage Prevention**: All 500 server error catch blocks return sanitized, generic messages (`"Internal server error. Please try again later."`) to prevent exposing internal stack traces or database connection details.
-4. **Secure Cookie Storage**: Authentication tokens are stored in `httpOnly`, `sameSite: 'lax'` cookies, preventing XSS-based credential theft.
-5. **Double-Booking Shield**: MongoDB compound unique index enforces data integrity even under high-concurrency requests.
+1. **Brute-Force Protection** — `/api/auth/login` limited to **10 attempts per 15 minutes per IP** via `express-rate-limit`.
+2. **ReDoS Mitigation** — All `$regex` inputs (e.g. specialty filter) are sanitized with `/[.*+?^${}()|[\]\\]/g` escaping.
+3. **Data Leakage Prevention** — All 500-level catch blocks return generic `"Internal server error. Please try again later."` — no stack traces exposed.
+4. **Secure Cookie Auth** — JWT stored in `httpOnly`, `sameSite: 'lax'` cookies, preventing XSS credential theft.
+5. **Double-Booking Shield** — MongoDB compound partial unique index enforces slot integrity under high concurrency atomically.
+6. **HMAC-SHA256 Payment Verification** — Backend independently recomputes Razorpay signature before finalizing any slot confirmation.
 
 ---
 
 ## 👥 User Roles & Workflows
 
-### 🏥 Patient Workflow
-1. Browse approved doctors by specialty or consultation fee.
-2. Use the **AI Symptom Navigator** if unsure which specialist to see.
-3. Select an available date and time slot generated dynamically from the doctor's weekly rules.
-4. Complete instant checkout via Razorpay.
-5. View status updates, access receipt details, or cancel appointments (which automatically refunds payments).
-6. Click **"Nearby Hospitals"** in the navigation bar to locate emergency rooms near their current GPS location with shortest-path routing.
+### 🏥 Patient
+1. Browse approved doctors filtered by specialty or consultation fee.
+2. Use the **AI Symptom Navigator** to identify the right specialist from natural-language input.
+3. Pick an available date — dynamic slots are generated from the doctor's weekly availability rules.
+4. Lock the slot and complete checkout via **Razorpay escrow**.
+5. Monitor appointment status, access receipts, or cancel (auto-refund triggered).
+6. Visit **Nearby Hospitals** for emergency GPS routing with Dijkstra shortest-path navigation.
+7. Track daily wellness with the **Health XP Heatmap & Quest HUD**.
 
-### 🩺 Doctor Workflow
-1. Register as a Doctor and wait for Admin verification.
-2. Once approved, configure working days, hours (e.g. `Monday 09:00 - 17:00`), consultation fee, and slot duration (e.g. `30` minutes).
-3. Monitor upcoming appointments in real time.
-4. Confirm slots and mark consultations **"Completed"** once concluded.
+### 🦺 Doctor
+1. Register and await admin verification.
+2. Once approved, configure working days/hours, consultation fee, and slot duration.
+3. Monitor upcoming appointments in the dashboard.
+4. Confirm slots and mark consultations **Completed** after the visit.
+5. Cancel appointments (auto-refund issued to patient).
 
-### 🛡️ Admin Workflow
-1. Monitor platform-wide metrics: total registered patients, approved doctors, completed appointments, and total revenue.
-2. Review new doctor applications, inspect credentials, and approve or reject them.
+### 🛡️ Admin
+1. View platform-wide metrics: patients, doctors, appointments, revenue.
+2. Review new doctor applications with credentials.
+3. Approve or reject/suspend doctor accounts.
+
+---
+
+## 🎨 UI Component Library
+
+The project ships a **fully custom 18-component design system** built with TailwindCSS v4 and Radix UI primitives, all themed with blue/indigo/emerald palette and full dark mode support.
+
+| Category | Components |
+|---|---|
+| **Forms** | `Input`, `Textarea`, `Select`, `Button` |
+| **Data Display** | `Table`, `Badge`, `Avatar`, `Skeleton`, `Pagination` |
+| **Feedback** | `EmptyState`, `Tooltip`, `ConfirmDialog` |
+| **Navigation** | `Tabs`, `CommandPalette` (Cmd+K), `ThemeToggle` |
+| **Overlay** | `Modal`, `NotificationBell`, `UserDropdown` |
+| **Gamification** | `HealthHabitHUD` (heatmap + XP + quests + badges + tree) |
+| **Layout** | `Card`, `DashboardLayout`, `PublicLayout`, `Navbar`, `Footer` |
 
 ---
 
 ## 📄 License
 
 Distributed under the **MIT License**. See `LICENSE` for more information.
+
+---
+
+<div align="center">
+  Built with ❤️ using React 19, Node.js, MongoDB, Gemini AI & Framer Motion
+</div>

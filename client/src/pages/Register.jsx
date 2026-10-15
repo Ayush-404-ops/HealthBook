@@ -20,7 +20,6 @@ import {
   Award,
   IndianRupee,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 const Register = () => {
@@ -53,7 +52,7 @@ const Register = () => {
     if (pass.length < 6) return { label: 'Weak', score: 33, color: 'bg-rose-500' };
     if (pass.length < 10 || !/\d/.test(pass))
       return { label: 'Medium', score: 66, color: 'bg-amber-500' };
-    return { label: 'Strong', score: 100, color: 'bg-emerald-500' };
+    return { label: 'Strong', score: 100, color: 'bg-teal-500' };
   };
 
   const strength = getPasswordStrength(formData.password);
@@ -124,63 +123,65 @@ const Register = () => {
         <ThemeToggle />
       </div>
 
-      {/* Left Branding */}
-      <div className="hidden lg:flex flex-1 relative bg-gradient-to-br from-teal-900 via-slate-900 to-blue-950 p-12 flex-col justify-between overflow-hidden">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,rgba(20,184,166,0.15),transparent_60%)] pointer-events-none" />
-
-        <Link to="/" className="flex items-center gap-3 z-10">
-          <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center text-white shadow-lg shadow-teal-500/30">
-            <HeartPulse className="w-6 h-6 animate-pulse" />
+      {/* Left Branding - Clean, minimal & static */}
+      <div className="hidden lg:flex flex-1 relative bg-[#061318] border-r border-slate-800/80 p-12 xl:p-16 flex-col justify-between">
+        <Link to="/" className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-[#007B8A] flex items-center justify-center text-white shadow-sm">
+            <HeartPulse className="w-5 h-5" />
           </div>
-          <span className="text-2xl font-black tracking-tight text-white">
-            Health<span className="text-teal-400">Book</span>
+          <span className="text-xl font-bold tracking-tight text-white">
+            Health<span className="text-[#6BCBEB]">Book</span>
           </span>
         </Link>
 
-        <div className="relative z-10 max-w-lg space-y-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-teal-500/20 text-teal-300 border border-teal-500/30">
-              Join 25,000+ Active Users
+        {/* Minimal clean feature overview */}
+        <div className="max-w-md w-full space-y-8 my-auto py-8">
+          <div>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold tracking-wider uppercase bg-[#007B8A]/15 text-[#6BCBEB] border border-[#007B8A]/30">
+              Healthcare Platform
             </span>
-            <h2 className="text-4xl font-black text-white leading-tight mt-4">
-              Begin Your Seamless Healthcare Journey
-            </h2>
-            <p className="text-sm text-slate-300 mt-3 leading-relaxed">
-              Whether you are a patient looking for care or a medical professional expanding your practice, HealthBook provides the tools you need.
+            <h1 className="text-3xl font-extrabold text-white tracking-tight mt-3 leading-tight">
+              Join thousands getting better healthcare.
+            </h1>
+            <p className="text-sm text-slate-400 mt-3 leading-relaxed">
+              Register as a patient for instant appointment booking and AI symptom triage, or join as a verified doctor to manage your clinical consultations.
             </p>
-          </motion.div>
+          </div>
 
-          <div className="grid grid-cols-2 gap-4 pt-4">
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <User className="w-6 h-6 text-teal-400 mb-2" />
-              <h4 className="text-xs font-bold text-white">For Patients</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">AI symptom triage & online booking</p>
+          <div className="space-y-5 pt-6 border-t border-slate-800/80">
+            <div className="flex items-start gap-4">
+              <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 text-[#6BCBEB] flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-white">For Patients</h4>
+                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">Zero waiting queues, verified doctor reviews & digital prescriptions.</p>
+              </div>
             </div>
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-md">
-              <Activity className="w-6 h-6 text-blue-400 mb-2" />
-              <h4 className="text-xs font-bold text-white">For Doctors</h4>
-              <p className="text-[11px] text-slate-400 mt-0.5">Automated queue & availability grid</p>
+
+            <div className="flex items-start gap-4">
+              <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 text-[#6BCBEB] flex items-center justify-center shrink-0">
+                <HeartPulse className="w-4 h-4" />
+              </div>
+              <div>
+                <h4 className="text-sm font-semibold text-white">For Medical Specialists</h4>
+                <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">Structured schedule management, patient queue & escrow payouts.</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <p className="text-xs text-slate-400 relative z-10">
-          © {new Date().getFullYear()} HealthBook Platform. All rights reserved.
-        </p>
+        <div className="flex items-center justify-between text-xs text-slate-500 pt-6 border-t border-slate-900">
+          <span>© {new Date().getFullYear()} HealthBook Platform</span>
+          <span className="flex items-center gap-1.5 text-slate-400 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#007B8A]" /> 256-bit Encrypted
+          </span>
+        </div>
       </div>
 
       {/* Right Form */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 relative overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4 }}
-          className="w-full max-w-md space-y-6 my-auto"
-        >
+      <div className="flex-1 flex items-center justify-center p-6 sm:p-12 relative bg-slate-50/60 dark:bg-slate-950 overflow-y-auto">
+        <div className="w-full max-w-md p-8 sm:p-10 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-6 my-auto">
           <div>
             <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-slate-100 tracking-tight">
               Create an Account
@@ -203,11 +204,7 @@ const Register = () => {
                 }`}
               >
                 {role === 'patient' && (
-                  <motion.div
-                    layoutId="roleSegment"
-                    className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.3 }}
-                  />
+                  <div className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-sm" />
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
                   <User className="w-4 h-4" /> Patient
@@ -224,11 +221,7 @@ const Register = () => {
                 }`}
               >
                 {role === 'doctor' && (
-                  <motion.div
-                    layoutId="roleSegment"
-                    className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-sm"
-                    transition={{ type: 'spring', bounce: 0.2, duration: 0.3 }}
-                  />
+                  <div className="absolute inset-0 bg-white dark:bg-slate-800 rounded-lg shadow-sm" />
                 )}
                 <span className="relative z-10 flex items-center gap-1.5">
                   <Activity className="w-4 h-4" /> Doctor
@@ -269,11 +262,7 @@ const Register = () => {
 
             {/* Doctor Extra Fields */}
             {role === 'doctor' && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                className="space-y-4 pt-1"
-              >
+              <div className="space-y-4 pt-1">
                 <Select
                   label="Specialty *"
                   name="specialty"
@@ -303,7 +292,7 @@ const Register = () => {
                     onChange={handleChange}
                   />
                 </div>
-              </motion.div>
+              </div>
             )}
 
             <div>
@@ -353,12 +342,12 @@ const Register = () => {
           <div className="text-center pt-3 border-t border-slate-200 dark:border-slate-800">
             <p className="text-xs text-slate-500 dark:text-slate-400">
               Already have an account?{' '}
-              <Link to="/login" className="font-bold text-teal-600 dark:text-teal-400 hover:underline">
+              <Link to="/login" className="font-bold text-[#007B8A] dark:text-[#6BCBEB] hover:underline">
                 Sign in here
               </Link>
             </p>
           </div>
-        </motion.div>
+        </div>
       </div>
     </div>
   );

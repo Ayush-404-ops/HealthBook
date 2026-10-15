@@ -75,7 +75,7 @@ export const CommandPalette = () => {
           <>
             <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm" />
             <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4">
-              <Dialog.Content className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden focus:outline-none animate-in fade-in-0 zoom-in-95">
+              <Dialog.Content className="w-full max-w-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-xl overflow-hidden focus:outline-none">
                 <div className="flex items-center px-4 border-b border-slate-100 dark:border-slate-800">
                   <Search className="w-5 h-5 text-slate-400 shrink-0 mr-3" />
                   <input
@@ -104,7 +104,7 @@ export const CommandPalette = () => {
                           key={item.id}
                           type="button"
                           onClick={() => handleSelect(item)}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left"
+                          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:text-sky-600 dark:hover:text-sky-400 transition-colors text-left"
                         >
                           <Icon className="w-4 h-4 text-slate-400" />
                           <span>{item.label}</span>

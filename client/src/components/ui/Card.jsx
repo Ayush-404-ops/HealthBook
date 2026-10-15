@@ -1,13 +1,9 @@
 import React from 'react';
 
-export const Card = ({ children, className = '', hover = true, glass = false, ...props }) => {
+export const Card = ({ children, className = '', hover = false, glass = false, ...props }) => {
   return (
     <div
-      className={`rounded-2xl transition-all duration-200 border ${
-        glass
-          ? 'glass-panel'
-          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800/80 shadow-sm'
-      } ${hover ? 'hover:shadow-md hover:border-slate-300 dark:hover:border-slate-700' : ''} ${className}`}
+      className={`rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm ${className}`}
       {...props}
     >
       {children}

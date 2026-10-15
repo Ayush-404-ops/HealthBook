@@ -17,7 +17,6 @@ import {
   Loader2,
   X,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 // Fix Leaflet marker icons
 delete L.Icon.Default.prototype._getIconUrl;
@@ -295,7 +294,7 @@ export default function NearbyHospitals() {
           <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <Badge status="cancelled" className="bg-rose-500 text-white font-bold animate-pulse">
+                <Badge status="cancelled" className="bg-rose-500 text-white font-bold">
                   SOS
                 </Badge>
                 <h2 className="text-base font-bold text-slate-900 dark:text-slate-100">
@@ -307,11 +306,11 @@ export default function NearbyHospitals() {
               </p>
             </div>
 
-            {/* Red Animated Locate Me Button */}
+            {/* Locate Me Button */}
             <button
               type="button"
               onClick={getCurrentGPS}
-              className="p-2 rounded-full bg-rose-600 text-white hover:bg-rose-700 shadow-md shadow-rose-600/30 animate-pulse transition-transform active:scale-95"
+              className="p-2 rounded-full bg-rose-600 text-white hover:bg-rose-700 shadow-sm transition-transform active:scale-95"
               title="Locate Me"
             >
               <Compass className="w-5 h-5" />
@@ -418,7 +417,7 @@ export default function NearbyHospitals() {
 
             {/* Route Polyline */}
             {route.length > 0 && (
-              <Polyline positions={route} color="#0d9488" weight={6} opacity={0.9} />
+              <Polyline positions={route} color="#007B8A" weight={6} opacity={0.9} />
             )}
           </MapContainer>
 

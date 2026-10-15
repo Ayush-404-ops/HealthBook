@@ -41,7 +41,7 @@ export const Input = React.forwardRef(
             } ${EndIcon ? 'pr-10' : ''} ${
               error
                 ? 'border-rose-500 dark:border-rose-500 focus:ring-rose-500/20'
-                : 'border-slate-200 dark:border-slate-800 focus:border-blue-500 dark:focus:border-blue-500 focus:ring-blue-500/20'
+                : 'border-slate-200 dark:border-slate-800 focus:border-sky-500 dark:focus:border-sky-500 focus:ring-sky-500/20'
             } ${className}`}
             {...props}
           />

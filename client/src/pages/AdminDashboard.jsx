@@ -38,7 +38,6 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
 } from 'recharts';
-import { motion } from 'framer-motion';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -138,7 +137,7 @@ const AdminDashboard = () => {
   const approvedDocsCount = doctors.filter((d) => d.isApproved).length;
 
   const doctorApprovalData = [
-    { name: 'Approved Doctors', value: approvedDocsCount, color: '#10b981' },
+    { name: 'Approved Doctors', value: approvedDocsCount, color: '#007B8A' },
     { name: 'Pending Approvals', value: pendingDocsCount, color: '#f59e0b' },
   ];
 
@@ -175,15 +174,15 @@ const AdminDashboard = () => {
           </div>
         </Card>
 
-        <Card className="p-5 flex items-center gap-4 bg-blue-500/5 border-blue-200 dark:border-blue-800/60">
-          <div className="p-3.5 rounded-2xl bg-blue-500 text-white shadow-md shadow-blue-500/20">
+        <Card className="p-5 flex items-center gap-4 bg-sky-500/5 border-sky-200 dark:border-sky-800/60">
+          <div className="p-3.5 rounded-2xl bg-sky-500 text-white shadow-md shadow-sky-500/20">
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
               {loadingStats ? <Skeleton className="h-7 w-12" /> : stats.totalDoctors}
             </div>
-            <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">
+            <div className="text-xs font-semibold text-sky-700 dark:text-sky-300">
               Total Practitioners
             </div>
           </div>
@@ -203,15 +202,15 @@ const AdminDashboard = () => {
           </div>
         </Card>
 
-        <Card className="p-5 flex items-center gap-4 bg-emerald-500/5 border-emerald-200 dark:border-emerald-800/60">
-          <div className="p-3.5 rounded-2xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20">
+        <Card className="p-5 flex items-center gap-4 bg-teal-500/5 border-teal-200 dark:border-teal-800/60">
+          <div className="p-3.5 rounded-2xl bg-teal-500 text-white shadow-md shadow-teal-500/20">
             <IndianRupee className="w-6 h-6" />
           </div>
           <div>
             <div className="text-2xl font-black text-slate-900 dark:text-slate-100">
               {loadingStats ? <Skeleton className="h-7 w-16" /> : `₹${stats.totalRevenue}`}
             </div>
-            <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+            <div className="text-xs font-semibold text-teal-700 dark:text-teal-300">
               Gross Gross Volume
             </div>
           </div>
@@ -272,7 +271,7 @@ const AdminDashboard = () => {
                     color: '#f8fafc',
                   }}
                 />
-                <Bar dataKey="count" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="count" fill="#3A9AD9" radius={[6, 6, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

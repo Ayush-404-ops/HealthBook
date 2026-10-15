@@ -15,9 +15,9 @@ export const UserDropdown = () => {
   };
 
   const getRoleIcon = () => {
-    if (user?.role === 'doctor') return <Activity className="w-3.5 h-3.5 text-blue-500" />;
+    if (user?.role === 'doctor') return <Activity className="w-3.5 h-3.5 text-sky-500" />;
     if (user?.role === 'admin') return <Shield className="w-3.5 h-3.5 text-purple-500" />;
-    return <User className="w-3.5 h-3.5 text-blue-500" />;
+    return <User className="w-3.5 h-3.5 text-sky-500" />;
   };
 
   return (
@@ -45,7 +45,7 @@ export const UserDropdown = () => {
         <DropdownMenu.Content
           align="end"
           sideOffset={8}
-          className="z-50 w-56 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl animate-in fade-in-0 zoom-in-95"
+          className="z-50 w-56 p-1.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-lg"
         >
           <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
             <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">{user?.name}</p>
@@ -55,7 +55,7 @@ export const UserDropdown = () => {
           <DropdownMenu.Item asChild>
             <Link
               to={user?.role === 'doctor' ? '/doctor' : user?.role === 'admin' ? '/admin' : '/patient'}
-              className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 rounded-xl hover:bg-blue-50 dark:hover:bg-blue-950/40 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer outline-none"
+              className="flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 rounded-xl hover:bg-sky-50 dark:hover:bg-sky-950/40 hover:text-sky-600 dark:hover:text-sky-400 transition-colors cursor-pointer outline-none"
             >
               <User className="w-4 h-4" />
               <span>Dashboard Overview</span>

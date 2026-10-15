@@ -21,6 +21,6 @@
     "razorpay": "^2.9.2"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^1.14.10"
   }
 }

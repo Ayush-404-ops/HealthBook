@@ -10,11 +10,11 @@ export const Footer = () => {
           {/* Brand Col */}
           <div className="space-y-4">
             <Link to="/" className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-teal-500 to-teal-600 flex items-center justify-center text-white">
                 <HeartPulse className="w-5 h-5" />
               </div>
               <span className="text-xl font-black text-white tracking-tight">
-                Health<span className="text-emerald-400">Book</span>
+                Health<span className="text-teal-400">Book</span>
               </span>
             </Link>
             <p className="text-xs text-slate-400 leading-relaxed">
@@ -29,7 +29,7 @@ export const Footer = () => {
             </h4>
             <ul className="space-y-2.5 text-xs">
               <li>
-                <Link to="/nearby-hospitals" className="hover:text-blue-400 transition-colors">
+                <Link to="/nearby-hospitals" className="hover:text-sky-400 transition-colors">
                   Emergency Hospitals
                 </Link>
               </li>
@@ -75,10 +75,10 @@ export const Footer = () => {
                 <Phone className="w-4 h-4" /> 24/7 Helpline: 108 / 112
               </li>
               <li className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-blue-400" /> support@healthbook.care
+                <Mail className="w-4 h-4 text-sky-400" /> support@healthbook.care
               </li>
               <li className="flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-blue-400" /> Medical Hub, Tech Park, IN
+                <MapPin className="w-4 h-4 text-sky-400" /> Medical Hub, Tech Park, IN
               </li>
             </ul>
           </div>
@@ -88,7 +88,7 @@ export const Footer = () => {
           <p>© {new Date().getFullYear()} HealthBook Platform. All rights reserved.</p>
           <div className="flex items-center gap-4 text-slate-500">
             <span className="flex items-center gap-1">
-              <Shield className="w-3.5 h-3.5 text-blue-400" /> HIPAA Compliant Architecture
+              <Shield className="w-3.5 h-3.5 text-sky-400" /> HIPAA Compliant Architecture
             </span>
           </div>
         </div>

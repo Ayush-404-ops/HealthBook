@@ -15,7 +15,7 @@ export const Tooltip = ({ children, content, side = 'top', align = 'center' }) =
         <RadixTooltip.Content
           side={side}
           align={align}
-          className="z-50 px-3 py-1.5 text-xs font-medium text-slate-100 bg-slate-900 dark:bg-slate-800 border border-slate-800 dark:border-slate-700 rounded-lg shadow-lg animate-in fade-in-0 zoom-in-95"
+          className="z-50 px-2.5 py-1 text-xs font-medium text-slate-100 bg-slate-900 dark:bg-slate-800 border border-slate-800 dark:border-slate-700 rounded shadow-md"
           sideOffset={5}
         >
           {content}

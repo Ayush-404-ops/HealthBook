@@ -44,7 +44,6 @@ import {
   YAxis,
   Tooltip as RechartsTooltip,
 } from 'recharts';
-import { motion } from 'framer-motion';
 
 const WEEKDAYS = [
   'Monday',
@@ -322,23 +321,23 @@ const DoctorDashboard = () => {
               </div>
             </Card>
 
-            <Card className="p-5 flex items-center gap-4 bg-blue-500/5 border-blue-200 dark:border-blue-800/60">
-              <div className="p-3.5 rounded-2xl bg-blue-500 text-white shadow-md shadow-blue-500/20">
+            <Card className="p-5 flex items-center gap-4 bg-sky-500/5 border-sky-200 dark:border-sky-800/60">
+              <div className="p-3.5 rounded-2xl bg-sky-500 text-white shadow-md shadow-sky-500/20">
                 <CheckCircle className="w-6 h-6" />
               </div>
               <div>
                 <div className="text-2xl font-black text-slate-900 dark:text-slate-100">{completedCount}</div>
-                <div className="text-xs font-semibold text-blue-700 dark:text-blue-300">Completed Visits</div>
+                <div className="text-xs font-semibold text-sky-700 dark:text-sky-300">Completed Visits</div>
               </div>
             </Card>
 
-            <Card className="p-5 flex items-center gap-4 bg-emerald-500/5 border-emerald-200 dark:border-emerald-800/60">
-              <div className="p-3.5 rounded-2xl bg-emerald-500 text-white shadow-md shadow-emerald-500/20">
+            <Card className="p-5 flex items-center gap-4 bg-teal-500/5 border-teal-200 dark:border-teal-800/60">
+              <div className="p-3.5 rounded-2xl bg-teal-500 text-white shadow-md shadow-teal-500/20">
                 <IndianRupee className="w-6 h-6" />
               </div>
               <div>
                 <div className="text-2xl font-black text-slate-900 dark:text-slate-100">₹{totalEarnings}</div>
-                <div className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">Total Revenue</div>
+                <div className="text-xs font-semibold text-teal-700 dark:text-teal-300">Total Revenue</div>
               </div>
             </Card>
           </div>
@@ -362,7 +361,7 @@ const DoctorDashboard = () => {
                       color: '#f8fafc',
                     }}
                   />
-                  <Bar dataKey="appointments" fill="#0d9488" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="appointments" fill="#007B8A" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

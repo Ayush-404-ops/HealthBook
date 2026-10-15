@@ -9,7 +9,7 @@ const ProtectedRoute = ({ children, allowedRoles = [] }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-blue-600 dark:text-blue-400">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-sky-600 dark:text-sky-400">
         <Loader2 className="w-8 h-8 animate-spin mb-2" />
         <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
           Verifying authentication...
