@@ -16,6 +16,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Tooltip } from '../components/ui/Tooltip';
 import { Pagination } from '../components/ui/Pagination';
 import { Tabs, TabContent } from '../components/ui/Tabs';
+import { Modal } from '../components/ui/Modal';
 import toast from 'react-hot-toast';
 import {
   User,
@@ -35,6 +36,9 @@ import {
   TrendingUp,
   Search,
   Filter,
+  FileText,
+  Star,
+  MessageSquare,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -104,6 +108,16 @@ const DoctorDashboard = () => {
   const [cancelDialogAppt, setCancelDialogAppt] = useState(null);
   const [updatingId, setUpdatingId] = useState(null);
 
+  // Consultation write-back
+  const [consultationAppt, setConsultationAppt] = useState(null);
+  const [consultNotes, setConsultNotes] = useState('');
+  const [consultPrescription, setConsultPrescription] = useState('');
+  const [savingConsult, setSavingConsult] = useState(false);
+
+  // Reviews
+  const [reviews, setReviews] = useState([]);
+  const [loadingReviews, setLoadingReviews] = useState(false);
+
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
@@ -132,10 +146,27 @@ const DoctorDashboard = () => {
     }
   }, []);
 
+  const fetchReviews = useCallback(async () => {
+    if (!profile._id) return;
+    try {
+      setLoadingReviews(true);
+      const res = await api.get(`/reviews/doctor/${profile._id}`);
+      if (res.data?.success) setReviews(res.data.data || []);
+    } catch {
+      // silently ignore
+    } finally {
+      setLoadingReviews(false);
+    }
+  }, [profile._id]);
+
   useEffect(() => {
     fetchProfile();
     fetchAppointments();
   }, [fetchProfile, fetchAppointments]);
+
+  useEffect(() => {
+    if (activeTab === 'reviews') fetchReviews();
+  }, [activeTab, fetchReviews]);
 
   const handleUpdateStatus = async (appointmentId, newStatus) => {
     setUpdatingId(appointmentId);
@@ -151,6 +182,32 @@ const DoctorDashboard = () => {
       toast.error(err.message || 'Failed to update status');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleOpenConsultation = (appt) => {
+    setConsultationAppt(appt);
+    setConsultNotes(appt.consultationNotes || '');
+    setConsultPrescription(appt.prescription || '');
+  };
+
+  const handleSaveConsultation = async () => {
+    if (!consultationAppt) return;
+    setSavingConsult(true);
+    try {
+      const res = await api.patch(`/appointments/${consultationAppt._id}/consultation`, {
+        consultationNotes: consultNotes,
+        prescription: consultPrescription,
+      });
+      if (res.data?.success) {
+        toast.success('Consultation notes saved!');
+        fetchAppointments();
+        setConsultationAppt(null);
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to save consultation notes');
+    } finally {
+      setSavingConsult(false);
     }
   };
 
@@ -296,6 +353,7 @@ const DoctorDashboard = () => {
           { value: 'queue', label: `Consultation Queue (${appointments.length})`, icon: List, badge: pendingCount },
           { value: 'profile', label: 'Profile Editor & Preview', icon: User },
           { value: 'availability', label: `Working Schedule (${profile.availability?.length || 0} Days)`, icon: Clock },
+          { value: 'reviews', label: `Patient Reviews (${reviews.length})`, icon: Star },
         ]}
       >
         {/* TAB 1: Overview & Stats */}
@@ -482,6 +540,17 @@ const DoctorDashboard = () => {
                                   </Button>
                                 </div>
                               </Tooltip>
+                            )}
+
+                            {['confirmed', 'completed'].includes(appt.status) && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleOpenConsultation(appt)}
+                                icon={FileText}
+                              >
+                                Notes
+                              </Button>
                             )}
 
                             {['pending', 'confirmed'].includes(appt.status) && (
@@ -731,6 +800,61 @@ const DoctorDashboard = () => {
             )}
           </Card>
         </TabContent>
+
+        {/* TAB 5: Patient Reviews */}
+        <TabContent value="reviews">
+          {loadingReviews ? (
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton key={i} className="h-20 rounded-2xl" />
+              ))}
+            </div>
+          ) : reviews.length === 0 ? (
+            <EmptyState
+              icon={MessageSquare}
+              title="No Patient Reviews Yet"
+              description="Reviews from patients will appear here after completed consultations."
+            />
+          ) : (
+            <div className="space-y-4">
+              {reviews.map((review) => (
+                <Card key={review._id} className="p-5">
+                  <div className="flex items-start gap-4">
+                    <Avatar size="sm" fallback={review.patient?.name} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-2 flex-wrap">
+                        <span className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                          {review.patient?.name || 'Anonymous Patient'}
+                        </span>
+                        <div className="flex items-center gap-0.5">
+                          {[...Array(5)].map((_, i) => (
+                            <Star
+                              key={i}
+                              className={`w-3.5 h-3.5 ${
+                                i < (review.rating || 0)
+                                  ? 'text-amber-400 fill-amber-400'
+                                  : 'text-slate-300 dark:text-slate-600'
+                              }`}
+                            />
+                          ))}
+                          <span className="text-xs font-bold text-slate-500 ml-1">{review.rating}/5</span>
+                        </div>
+                      </div>
+                      {review.comment && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1.5 italic">
+                          &ldquo;{review.comment}&rdquo;
+                        </p>
+                      )}
+                      <p className="text-[10px] text-slate-400 mt-1">
+                        {review.createdAt ? new Date(review.createdAt).toLocaleDateString() : ''}
+                      </p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabContent>
       </Tabs>
 
       {/* Confirm Cancellation Dialog */}
@@ -747,6 +871,47 @@ const DoctorDashboard = () => {
         description="Are you sure you want to cancel this patient appointment slot?"
         confirmLabel="Cancel Appointment"
       />
+
+      {/* Consultation Notes & Prescription Modal */}
+      <Modal
+        isOpen={!!consultationAppt}
+        onClose={() => setConsultationAppt(null)}
+        title="Consultation Notes & Prescription"
+        description={`Patient: ${consultationAppt?.patient?.name || 'Patient'} • ${consultationAppt?.date} at ${consultationAppt?.startTime}`}
+        maxWidth="max-w-lg"
+      >
+        <div className="space-y-4 pt-1">
+          <Textarea
+            label="Consultation Notes"
+            rows={4}
+            placeholder="Clinical observations, diagnosis, and examination findings..."
+            value={consultNotes}
+            onChange={(e) => setConsultNotes(e.target.value)}
+          />
+          <Textarea
+            label="Prescription / RX"
+            rows={4}
+            placeholder="List medicines, dosage, and duration..."
+            value={consultPrescription}
+            onChange={(e) => setConsultPrescription(e.target.value)}
+          />
+          <div className="flex items-center gap-3 pt-1">
+            <Button variant="ghost" size="sm" onClick={() => setConsultationAppt(null)} className="flex-1">
+              Discard
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              icon={Save}
+              loading={savingConsult}
+              onClick={handleSaveConsultation}
+              className="flex-1"
+            >
+              Save Notes
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </DashboardLayout>
   );
 };
