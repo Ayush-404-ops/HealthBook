@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import api from '../api/axios';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
 import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
@@ -37,6 +38,7 @@ import {
 } from 'recharts';
 
 const AdminDashboard = () => {
+  const location = useLocation();
   const [stats, setStats] = useState({
     totalPatients: 0,
     totalDoctors: 0,
@@ -89,6 +91,15 @@ const AdminDashboard = () => {
     fetchStats();
     fetchDoctors();
   }, [fetchStats, fetchDoctors]);
+
+  useEffect(() => {
+    if (location.hash === '#approvals') {
+      setTimeout(() => {
+        const el = document.getElementById('approvals');
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    }
+  }, [location.hash]);
 
   const executeApprovalAction = async () => {
     if (!dialogConfig) return;
@@ -275,7 +286,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Doctor Approvals Table */}
-      <Card className="p-6">
+      <Card id="approvals" className="p-6">
         <CardHeader className="p-0 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <CardTitle>Practitioner Verification Pipeline</CardTitle>

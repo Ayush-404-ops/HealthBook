@@ -51,9 +51,9 @@ export const DashboardLayout = ({ children, title = 'Dashboard', subtitle }) => 
 
     // Default Patient
     return [
-      { label: 'My Appointments', icon: Calendar, path: '/patient' },
+      { label: 'Find Doctors', icon: Stethoscope, path: '/patient' },
+      { label: 'My Appointments', icon: Calendar, path: '/patient#appointments' },
       { label: 'AI Symptom Navigator', icon: Bot, path: '/patient#ai-navigator' },
-      { label: 'Find Doctors', icon: Stethoscope, path: '/patient#find-doctors' },
       { label: 'Nearby Hospitals', icon: MapPin, path: '/nearby-hospitals' },
     ];
   };
@@ -98,7 +98,10 @@ export const DashboardLayout = ({ children, title = 'Dashboard', subtitle }) => 
         <div className="flex-1 p-3 space-y-1.5 overflow-y-auto">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path || location.pathname + location.hash === item.path;
+            const currentFullPath = location.pathname + (location.hash || '');
+            const isActive = item.path.includes('#')
+              ? currentFullPath === item.path
+              : (location.pathname === item.path && (!location.hash || location.hash === '#'));
             return (
               <Link
                 key={item.label}

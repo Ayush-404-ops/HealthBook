@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
@@ -61,7 +62,42 @@ const SPECIALTIES = [
 
 const PatientDashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('directory'); // 'directory' | 'appointments'
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const getTabFromHash = useCallback((hashStr) => {
+    const raw = (hashStr || '').replace('#', '').trim();
+    if (raw === 'appointments') return 'appointments';
+    return 'directory';
+  }, []);
+
+  const [activeTab, setActiveTab] = useState(() => getTabFromHash(location.hash));
+
+  // Sync active tab with location hash
+  useEffect(() => {
+    const raw = (location.hash || '').replace('#', '').trim();
+    if (raw === 'appointments') {
+      setActiveTab('appointments');
+    } else {
+      setActiveTab('directory');
+      if (raw === 'ai-navigator') {
+        setTimeout(() => {
+          const el = document.getElementById('ai-navigator');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      } else if (raw === 'find-doctors') {
+        setTimeout(() => {
+          const el = document.getElementById('find-doctors');
+          if (el) el.scrollIntoView({ behavior: 'smooth' });
+        }, 150);
+      }
+    }
+  }, [location.hash]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    navigate(newTab === 'directory' ? '/patient' : `/patient#${newTab}`, { replace: true });
+  };
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [appointmentSubTab, setAppointmentSubTab] = useState('upcoming'); // 'upcoming' | 'completed' | 'cancelled'
 
@@ -228,7 +264,7 @@ const PatientDashboard = () => {
   const handleBookingSuccess = () => {
     setSelectedDoctor(null);
     fetchMyAppointments();
-    setActiveTab('appointments');
+    handleTabChange('appointments');
   };
 
   const handleSubmitReview = async () => {
@@ -389,7 +425,7 @@ const PatientDashboard = () => {
       {/* Main Tabs (Find Specialists vs My Appointments) */}
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         tabs={[
           { value: 'directory', label: `Find Doctors (${doctors.length})`, icon: Stethoscope },
           { value: 'appointments', label: `My Appointments (${myAppointments.length})`, icon: Calendar, badge: upcomingCount },

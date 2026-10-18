@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
@@ -81,7 +82,27 @@ const SPECIALTIES = [
 
 const DoctorDashboard = () => {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'queue' | 'profile' | 'availability'
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  const getTabFromHash = useCallback((hashStr) => {
+    const raw = (hashStr || '').replace('#', '').trim();
+    const valid = ['overview', 'queue', 'profile', 'availability', 'reviews'];
+    return valid.includes(raw) ? raw : 'overview';
+  }, []);
+
+  const [activeTab, setActiveTab] = useState(() => getTabFromHash(location.hash));
+
+  // Sync tab with URL hash when sidebar links are clicked
+  useEffect(() => {
+    const tab = getTabFromHash(location.hash);
+    setActiveTab(tab);
+  }, [location.hash, getTabFromHash]);
+
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    navigate(newTab === 'overview' ? '/doctor' : `/doctor#${newTab}`, { replace: true });
+  };
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -346,7 +367,7 @@ const DoctorDashboard = () => {
       {/* Tabs */}
       <Tabs
         value={activeTab}
-        onValueChange={setActiveTab}
+        onValueChange={handleTabChange}
         tabs={[
           { value: 'overview', label: 'Overview & Stats', icon: TrendingUp },
           { value: 'queue', label: `Consultation Queue (${appointments.length})`, icon: List, badge: pendingCount },
