@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
 import { Avatar } from '../ui/Avatar';
-import { LogOut, User, Settings, Shield, Activity, ChevronDown } from 'lucide-react';
+import { LogOut, User, Shield, Activity, ChevronDown } from 'lucide-react';
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu';
 
 export const UserDropdown = () => {

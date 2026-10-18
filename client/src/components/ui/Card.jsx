@@ -1,9 +1,11 @@
 import React from 'react';
 
 export const Card = ({ children, className = '', hover = false, glass = false, ...props }) => {
+  const hoverStyles = hover ? 'transition-all duration-200 hover:shadow-md hover:-translate-y-0.5' : '';
+  const bgStyles = glass ? 'backdrop-blur-md bg-white/80 dark:bg-slate-900/80' : 'bg-white dark:bg-slate-900';
   return (
     <div
-      className={`rounded-xl border bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm ${className}`}
+      className={`rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm ${bgStyles} ${hoverStyles} ${className}`}
       {...props}
     >
       {children}

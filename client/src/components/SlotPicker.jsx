@@ -5,7 +5,7 @@ import { Button } from './ui/Button';
 import { Input } from './ui/Input';
 import { Textarea } from './ui/Textarea';
 import toast from 'react-hot-toast';
-import { Calendar as CalendarIcon, Clock, Check, FileText, Timer } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Check, Timer } from 'lucide-react';
 
 const SSE_BASE = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:5000';
 

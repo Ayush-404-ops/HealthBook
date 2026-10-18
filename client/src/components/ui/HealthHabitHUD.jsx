@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import {
   Trophy,
   Flame,
-  Zap,
   CheckCircle2,
   Circle,
   Sparkles,
   Droplets,
   HeartPulse,
-  Award,
   ShieldCheck,
   CalendarDays
 } from 'lucide-react';
@@ -35,7 +33,7 @@ const BADGES = [
 
 export const HealthHabitHUD = ({ compact = false, showBadges = true }) => {
   const [xp, setXp] = useState(1420);
-  const [streak, setStreak] = useState(12);
+  const streak = 12;
   const [quests, setQuests] = useState([
     { id: 'q1', text: 'Log morning vitals & resting pulse', xpReward: 50, done: true },
     { id: 'q2', text: 'Drink 2,000ml water today', xpReward: 40, done: false },
@@ -121,18 +119,19 @@ export const HealthHabitHUD = ({ compact = false, showBadges = true }) => {
       </div>
 
       {/* Main HUD Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5">
+      <div className={`grid grid-cols-1 ${compact ? '' : 'md:grid-cols-2'} gap-4 mt-5`}>
         {/* HabitKit Heatmap Card */}
-        <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <CalendarDays className="w-4 h-4 text-teal-600" />
-              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
-                Health Consistency Heatmap
-              </span>
+        {!compact && (
+          <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <CalendarDays className="w-4 h-4 text-teal-600" />
+                <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                  Health Consistency Heatmap
+                </span>
+              </div>
+              <span className="text-[10px] text-slate-400 font-mono">Last 35 Days</span>
             </div>
-            <span className="text-[10px] text-slate-400 font-mono">Last 35 Days</span>
-          </div>
 
           {/* Grid Squares */}
           <div className="grid grid-flow-col grid-rows-5 gap-1.5 justify-start">
@@ -164,6 +163,7 @@ export const HealthHabitHUD = ({ compact = false, showBadges = true }) => {
             <span>High Vitality</span>
           </div>
         </div>
+        )}
 
         {/* Daily Quests */}
         <div className="p-4 rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-800 flex flex-col justify-between">

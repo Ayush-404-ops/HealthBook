@@ -1,7 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Calendar,
-  Clock,
   Sparkles,
   Bot,
   MapPin,
@@ -9,14 +7,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Stethoscope,
-  HeartPulse,
-  Flame,
-  Zap,
-  ArrowRight,
-  CreditCard,
-  Lock,
-  ChevronRight,
-  Activity
+  Lock
 } from 'lucide-react';
 
 export const BentoFeatures = () => {

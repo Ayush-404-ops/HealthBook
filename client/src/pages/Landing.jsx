@@ -16,7 +16,6 @@ import {
   ChevronDown,
   Users,
   Award,
-  Clock,
   Stethoscope,
   Phone,
 } from "lucide-react";
