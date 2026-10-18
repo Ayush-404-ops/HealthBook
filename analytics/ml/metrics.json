@@ -1,0 +1,73 @@
+{
+  "best_model": "RandomForestClassifier",
+  "dataset_size": 505,
+  "positive_class_count": 98,
+  "negative_class_count": 407,
+  "models": {
+    "LogisticRegression": {
+      "test_metrics": {
+        "accuracy": 0.5644,
+        "precision": 0.2,
+        "recall": 0.4,
+        "f1": 0.2667,
+        "roc_auc": 0.4852,
+        "confusion_matrix": [
+          [
+            49,
+            32
+          ],
+          [
+            12,
+            8
+          ]
+        ]
+      },
+      "cv_summary": {
+        "cv_accuracy_mean": 0.5321,
+        "cv_precision_mean": 0.1947,
+        "cv_recall_mean": 0.4483,
+        "cv_f1_mean": 0.2709,
+        "cv_roc_auc_mean": 0.5216
+      }
+    },
+    "RandomForestClassifier": {
+      "test_metrics": {
+        "accuracy": 0.6931,
+        "precision": 0.2963,
+        "recall": 0.4,
+        "f1": 0.3404,
+        "roc_auc": 0.5469,
+        "confusion_matrix": [
+          [
+            62,
+            19
+          ],
+          [
+            12,
+            8
+          ]
+        ]
+      },
+      "cv_summary": {
+        "cv_accuracy_mean": 0.626,
+        "cv_precision_mean": 0.1909,
+        "cv_recall_mean": 0.3167,
+        "cv_f1_mean": 0.2358,
+        "cv_roc_auc_mean": 0.5527
+      },
+      "top_feature_importances": {
+        "lead_time_days": 0.1733,
+        "hour": 0.1517,
+        "fee": 0.083,
+        "patient_prev_cancellations": 0.0724,
+        "weekday_Monday": 0.065,
+        "rescheduled_count": 0.0624,
+        "specialization_Orthopedics": 0.0607,
+        "weekday_Saturday": 0.0452,
+        "specialization_Cardiology": 0.0441,
+        "specialization_Psychiatry": 0.0278
+      }
+    }
+  },
+  "data_disclosure": "Trained on synthetic demonstration data. Demonstrates ML engineering pipeline; not intended for clinical use."
+}

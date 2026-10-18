@@ -234,3 +234,35 @@ def chart_status_view(request):
     plt.close(fig)
     buf.seek(0)
     return HttpResponse(buf.getvalue(), content_type='image/png')
+
+
+@login_required
+def noshow_risk_api(request):
+    """
+    POST/GET JSON endpoint: predicts the probability that an appointment will end as
+    a no-show or late cancellation. Validates intake features and returns 400 on bad input.
+    """
+    import json
+    from ml.predict import predict_noshow_probability
+
+    if request.method == 'POST':
+        try:
+            if request.body:
+                data = json.loads(request.body.decode('utf-8'))
+            else:
+                data = request.POST.dict()
+        except Exception as e:
+            return JsonResponse({'status': 'error', 'message': f'Invalid JSON payload: {str(e)}'}, status=400)
+    else:
+        data = request.GET.dict()
+
+    if not data:
+        return JsonResponse({'status': 'error', 'message': 'Request payload is empty.'}, status=400)
+
+    try:
+        result = predict_noshow_probability(data)
+        return JsonResponse({'status': 'success', **result}, status=200)
+    except ValueError as val_err:
+        return JsonResponse({'status': 'error', 'message': str(val_err)}, status=400)
+    except Exception as exc:
+        return JsonResponse({'status': 'error', 'message': f'Internal scoring error: {str(exc)}'}, status=500)

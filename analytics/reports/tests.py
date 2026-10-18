@@ -237,3 +237,146 @@ class SeedDemoDataTests(TestCase):
         # Re-running with clear should reset without duplicating
         call_command('seed_demo_data', count=20, seed=123, clear=True)
         self.assertEqual(AppointmentFact.objects.filter(is_demo=True).count(), 20)
+
+
+class MLModelAndEndpointTests(TestCase):
+    """
+    Tests for the scikit-learn no-show / cancellation machine learning pipeline
+    and the /reports/api/noshow-risk/ JSON scoring endpoint.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.user = User.objects.create_user(username='clinician', password='clinician-pass-123')
+
+    def test_train_pipeline_on_tiny_fixture(self):
+        """Validates that ML training completes on a minimal fixture dataset."""
+        import pandas as pd
+        from ml.train import train_noshow_pipeline
+
+        # Minimal dataset of 20 appointments with both positive and negative outcomes
+        data = []
+        for i in range(20):
+            data.append({
+                'mongo_id': f'tiny_appt_{i}',
+                'specialization': 'Cardiology' if i % 2 == 0 else 'Pediatrics',
+                'patient_hash': f'hash_p_{i % 5}',
+                'date': f'2026-08-{(i % 25) + 1:02d}',
+                'start_time': f'{(9 + (i % 8)):02d}:00',
+                'status': 'cancelled' if i in [3, 7, 11, 15] else 'completed',
+                'fee': 600.0,
+                'created_at': '2026-08-01T10:00:00+00:00',
+                'rescheduled_count': i % 3,
+            })
+        tiny_df = pd.DataFrame(data)
+
+        report, pipeline = train_noshow_pipeline(df=tiny_df, save_artifacts=False)
+        self.assertIn('best_model', report)
+        self.assertIn(report['best_model'], ['LogisticRegression', 'RandomForestClassifier'])
+        self.assertIn('models', report)
+        self.assertIsNotNone(pipeline)
+
+    def test_predict_noshow_probability_output_range(self):
+        """Verifies prediction returns a probability strictly between 0 and 1."""
+        from ml.predict import predict_noshow_probability
+
+        valid_payload = {
+            'weekday': 'Tuesday',
+            'hour': 11,
+            'lead_time_days': 5,
+            'fee': 800.0,
+            'specialization': 'Dermatology',
+            'patient_prev_cancellations': 0,
+            'rescheduled_count': 0
+        }
+
+        result = predict_noshow_probability(valid_payload)
+        self.assertIn('probability', result)
+        self.assertIn('risk_level', result)
+        self.assertGreaterEqual(result['probability'], 0.0)
+        self.assertLessEqual(result['probability'], 1.0)
+        self.assertIn(result['risk_level'], ['Low', 'Medium', 'High'])
+
+    def test_predict_noshow_probability_rejects_invalid_input(self):
+        """Verifies validation rejects invalid weekdays, hours, and negative values."""
+        from ml.predict import predict_noshow_probability
+
+        # Invalid weekday
+        with self.assertRaises(ValueError):
+            predict_noshow_probability({
+                'weekday': 'Funday', 'hour': 10, 'lead_time_days': 3,
+                'fee': 500.0, 'specialization': 'General'
+            })
+
+        # Out-of-bounds hour
+        with self.assertRaises(ValueError):
+            predict_noshow_probability({
+                'weekday': 'Monday', 'hour': 45, 'lead_time_days': 3,
+                'fee': 500.0, 'specialization': 'General'
+            })
+
+        # Negative lead time
+        with self.assertRaises(ValueError):
+            predict_noshow_probability({
+                'weekday': 'Monday', 'hour': 10, 'lead_time_days': -5,
+                'fee': 500.0, 'specialization': 'General'
+            })
+
+        # Empty specialization
+        with self.assertRaises(ValueError):
+            predict_noshow_probability({
+                'weekday': 'Monday', 'hour': 10, 'lead_time_days': 2,
+                'fee': 500.0, 'specialization': ''
+            })
+
+    def test_endpoint_requires_login(self):
+        """Verifies that the /reports/api/noshow-risk/ endpoint requires authentication."""
+        url = reverse('reports:api_noshow_risk')
+        response = self.client.post(url, data={}, content_type='application/json')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_endpoint_rejects_bad_input_with_400(self):
+        """Verifies authenticated endpoint returns HTTP 400 on invalid payload."""
+        self.client.login(username='clinician', password='clinician-pass-123')
+        url = reverse('reports:api_noshow_risk')
+
+        # Empty payload
+        res1 = self.client.post(url, data={}, content_type='application/json')
+        self.assertEqual(res1.status_code, 400)
+        self.assertEqual(res1.json().get('status'), 'error')
+
+        # Invalid hour value
+        bad_payload = {
+            'weekday': 'Friday',
+            'hour': 99,
+            'lead_time_days': 2,
+            'fee': 700.0,
+            'specialization': 'ENT'
+        }
+        res2 = self.client.post(url, data=bad_payload, content_type='application/json')
+        self.assertEqual(res2.status_code, 400)
+        self.assertEqual(res2.json().get('status'), 'error')
+
+    def test_endpoint_returns_probability_on_valid_input(self):
+        """Verifies authenticated endpoint returns probability between 0 and 1 on valid input."""
+        self.client.login(username='clinician', password='clinician-pass-123')
+        url = reverse('reports:api_noshow_risk')
+
+        valid_payload = {
+            'weekday': 'Wednesday',
+            'hour': 15,
+            'lead_time_days': 12,
+            'fee': 1000.0,
+            'specialization': 'Neurology',
+            'patient_prev_cancellations': 1,
+            'rescheduled_count': 1
+        }
+        response = self.client.post(url, data=valid_payload, content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data.get('status'), 'success')
+        self.assertIn('probability', data)
+        self.assertGreaterEqual(data['probability'], 0.0)
+        self.assertLessEqual(data['probability'], 1.0)
+        self.assertIn('risk_level', data)

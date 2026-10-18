@@ -6,6 +6,7 @@ app_name = 'reports'
 urlpatterns = [
     path('', views.dashboard_view, name='dashboard'),
     path('api/appointments/', views.appointments_filter_api, name='api_appointments'),
+    path('api/noshow-risk/', views.noshow_risk_api, name='api_noshow_risk'),
     path('charts/weekday/', views.chart_weekday_view, name='chart_weekday'),
     path('charts/hourly/', views.chart_hourly_view, name='chart_hourly'),
     path('charts/status/', views.chart_status_view, name='chart_status'),
