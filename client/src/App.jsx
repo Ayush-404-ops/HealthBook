@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './components/ProtectedRoute';
 import { CommandPalette } from './components/ui/CommandPalette';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -65,6 +65,12 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          {/* Route aliases */}
+          <Route path="/patient/dashboard" element={<Navigate to="/patient" replace />} />
+          <Route path="/doctor/dashboard" element={<Navigate to="/doctor" replace />} />
+          <Route path="/admin/dashboard" element={<Navigate to="/admin" replace />} />
+          <Route path="/hospitals" element={<Navigate to="/nearby-hospitals" replace />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
