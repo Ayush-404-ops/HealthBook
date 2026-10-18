@@ -1,6 +1,7 @@
 {
   "name": "healthbook-server",
   "version": "1.0.0",
+  "license": "MIT",
   "description": "HealthBook Express + MongoDB backend",
   "main": "server.js",
   "scripts": {
