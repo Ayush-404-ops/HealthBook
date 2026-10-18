@@ -45,9 +45,17 @@ export const NotificationBell = () => {
     try {
       const res = await api.get('/notifications/mine');
       if (res.data?.success) {
-        const items = res.data.data || [];
+        const payload = res.data.data;
+        const items = Array.isArray(payload)
+          ? payload
+          : Array.isArray(payload?.notifications)
+            ? payload.notifications
+            : [];
+        const count = typeof payload?.unreadCount === 'number'
+          ? payload.unreadCount
+          : items.filter((n) => !n.read).length;
         setNotifications(items);
-        setUnreadCount(items.filter((n) => !n.read).length);
+        setUnreadCount(count);
       }
     } catch {
       // silently fail – notifications are non-critical
@@ -68,12 +76,14 @@ export const NotificationBell = () => {
       try {
         await api.patch('/notifications/read-all');
         setUnreadCount(0);
-        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
+        setNotifications((prev) => (Array.isArray(prev) ? prev.map((n) => ({ ...n, read: true })) : []));
       } catch {
         // ignore
       }
     }
   };
+
+  const notifList = Array.isArray(notifications) ? notifications : [];
 
   return (
     <DropdownMenu.Root onOpenChange={handleOpenChange} open={open}>
@@ -102,20 +112,20 @@ export const NotificationBell = () => {
             <span className="text-xs font-bold text-slate-900 dark:text-slate-100">
               Notifications
             </span>
-            {notifications.length > 0 && (
+            {notifList.length > 0 && (
               <span className="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-50 dark:bg-sky-950/40 px-2 py-0.5 rounded-full">
-                {notifications.length} total
+                {notifList.length} total
               </span>
             )}
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-72 overflow-y-auto">
-            {notifications.length === 0 ? (
+            {notifList.length === 0 ? (
               <div className="px-4 py-6 text-center text-xs text-slate-400">
                 No notifications yet
               </div>
             ) : (
-              notifications.slice(0, 20).map((item) => (
+              notifList.slice(0, 20).map((item) => (
                 <div
                   key={item._id}
                   className={`p-3 rounded-xl transition-colors ${
