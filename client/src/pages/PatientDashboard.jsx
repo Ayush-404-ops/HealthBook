@@ -6,6 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../co
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
+import { Textarea } from '../components/ui/Textarea';
 import { Badge } from '../components/ui/Badge';
 import { Avatar } from '../components/ui/Avatar';
 import { Skeleton } from '../components/ui/Skeleton';
@@ -38,6 +39,8 @@ import {
   Flame,
   Trophy,
   RefreshCw,
+  Star,
+  FileText,
 } from 'lucide-react';
 
 const SPECIALTIES = [
@@ -84,6 +87,17 @@ const PatientDashboard = () => {
   const [cancelling, setCancelling] = useState(false);
   const [receiptAppt, setReceiptAppt] = useState(null);
   const [rescheduleAppt, setRescheduleAppt] = useState(null);
+
+  // Leave Review
+  const [reviewAppt, setReviewAppt] = useState(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+
+  // View Prescription
+  const [prescriptionAppt, setPrescriptionAppt] = useState(null);
+  const [prescriptionData, setPrescriptionData] = useState(null);
+  const [loadingPrescription, setLoadingPrescription] = useState(false);
 
   const fetchDoctors = useCallback(async () => {
     try {
@@ -221,6 +235,44 @@ const PatientDashboard = () => {
     setSelectedDoctor(null);
     fetchMyAppointments();
     setActiveTab('appointments');
+  };
+
+  const handleSubmitReview = async () => {
+    if (!reviewAppt) return;
+    setSubmittingReview(true);
+    try {
+      const res = await api.post('/reviews', {
+        doctorId: reviewAppt.doctor?._id || reviewAppt.doctor,
+        appointmentId: reviewAppt._id,
+        rating: reviewRating,
+        comment: reviewComment,
+      });
+      if (res.data?.success) {
+        toast.success('Review submitted! Thank you.');
+        setReviewAppt(null);
+        setReviewComment('');
+        setReviewRating(5);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to submit review');
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
+  const handleViewPrescription = async (appt) => {
+    setPrescriptionAppt(appt);
+    setPrescriptionData(null);
+    setLoadingPrescription(true);
+    try {
+      const res = await api.get(`/appointments/${appt._id}/prescription`);
+      if (res.data?.success) setPrescriptionData(res.data.data);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not load prescription');
+      setPrescriptionAppt(null);
+    } finally {
+      setLoadingPrescription(false);
+    }
   };
 
   const filteredDoctors = doctors.filter((doc) => {
@@ -645,6 +697,31 @@ const PatientDashboard = () => {
                         </Button>
                       )}
 
+                      {appt.status === 'completed' && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            icon={FileText}
+                            onClick={() => handleViewPrescription(appt)}
+                          >
+                            Prescription
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            icon={Star}
+                            onClick={() => {
+                              setReviewAppt(appt);
+                              setReviewRating(5);
+                              setReviewComment('');
+                            }}
+                          >
+                            Review
+                          </Button>
+                        </>
+                      )}
+
                       {['pending', 'confirmed'].includes(appt.status) && (
                         <Button
                           variant="outline"
@@ -747,6 +824,105 @@ const PatientDashboard = () => {
             </Button>
           </div>
         )}
+      </Modal>
+
+      {/* Leave Review Modal */}
+      <Modal
+        isOpen={!!reviewAppt}
+        onClose={() => setReviewAppt(null)}
+        title="Leave a Review"
+        description={`How was your consultation with Dr. ${reviewAppt?.doctor?.user?.name || 'your doctor'}?`}
+        maxWidth="max-w-md"
+      >
+        {reviewAppt && (
+          <div className="space-y-4 pt-1">
+            <div className="flex items-center justify-center gap-2">
+              {[1, 2, 3, 4, 5].map((star) => (
+                <button
+                  key={star}
+                  type="button"
+                  onClick={() => setReviewRating(star)}
+                  className="focus:outline-none transition-transform hover:scale-110"
+                  aria-label={`Rate ${star} stars`}
+                >
+                  <Star
+                    className={`w-8 h-8 ${
+                      star <= reviewRating
+                        ? 'text-amber-400 fill-amber-400'
+                        : 'text-slate-300 dark:text-slate-600'
+                    }`}
+                  />
+                </button>
+              ))}
+            </div>
+            <p className="text-center text-xs font-semibold text-slate-500">{reviewRating}/5 stars</p>
+            <Textarea
+              label="Your comment (optional)"
+              rows={3}
+              placeholder="Share your experience with future patients..."
+              value={reviewComment}
+              onChange={(e) => setReviewComment(e.target.value)}
+            />
+            <div className="flex gap-3 pt-1">
+              <Button variant="ghost" size="sm" onClick={() => setReviewAppt(null)} className="flex-1">
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                icon={Star}
+                loading={submittingReview}
+                onClick={handleSubmitReview}
+                className="flex-1"
+              >
+                Submit Review
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* View Prescription Modal */}
+      <Modal
+        isOpen={!!prescriptionAppt}
+        onClose={() => setPrescriptionAppt(null)}
+        title="Prescription & Consultation Notes"
+        description={prescriptionAppt ? `Dr. ${prescriptionAppt.doctor?.user?.name} \u2022 ${prescriptionAppt.date}` : ''}
+        maxWidth="max-w-lg"
+      >
+        {loadingPrescription ? (
+          <div className="space-y-3 pt-2">
+            <Skeleton className="h-20 rounded-xl" />
+            <Skeleton className="h-20 rounded-xl" />
+          </div>
+        ) : prescriptionData ? (
+          <div className="space-y-4 pt-1 text-sm">
+            {prescriptionData.consultationNotes ? (
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                <p className="text-xs font-bold text-slate-500 mb-1 uppercase tracking-wide">Consultation Notes</p>
+                <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line text-xs">
+                  {prescriptionData.consultationNotes}
+                </p>
+              </div>
+            ) : null}
+            {prescriptionData.prescription ? (
+              <div className="p-4 rounded-xl bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800">
+                <p className="text-xs font-bold text-teal-600 dark:text-teal-400 mb-1 uppercase tracking-wide">Prescription / Rx</p>
+                <p className="text-slate-800 dark:text-slate-200 whitespace-pre-line text-xs">
+                  {prescriptionData.prescription}
+                </p>
+              </div>
+            ) : null}
+            {!prescriptionData.consultationNotes && !prescriptionData.prescription && (
+              <p className="text-center text-slate-400 text-xs py-4">
+                No notes or prescription added yet.
+              </p>
+            )}
+            <Button variant="outline" size="sm" className="w-full" icon={Printer} onClick={() => window.print()}>
+              Print Prescription
+            </Button>
+          </div>
+        ) : null}
       </Modal>
     </DashboardLayout>
   );

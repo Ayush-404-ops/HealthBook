@@ -151,7 +151,7 @@ const DoctorDashboard = () => {
     try {
       setLoadingReviews(true);
       const res = await api.get(`/reviews/doctor/${profile._id}`);
-      if (res.data?.success) setReviews(res.data.data || []);
+      if (res.data?.success) setReviews(res.data.data?.reviews || []);
     } catch {
       // silently ignore
     } finally {
