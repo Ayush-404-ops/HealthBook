@@ -17,3 +17,4 @@ analytics/venv/
 analytics/staticfiles/
 analytics/.env
 analytics/ml/artifacts/
+.audit/
