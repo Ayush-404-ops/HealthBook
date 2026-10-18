@@ -15,6 +15,7 @@ import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Tabs, TabContent } from '../components/ui/Tabs';
 import SlotPicker from '../components/SlotPicker';
 import SymptomNavigator from '../components/SymptomNavigator';
+import RescheduleModal from '../components/ui/RescheduleModal';
 import toast from 'react-hot-toast';
 import {
   Search,
@@ -36,6 +37,7 @@ import {
   ShieldCheck,
   Flame,
   Trophy,
+  RefreshCw,
 } from 'lucide-react';
 
 const SPECIALTIES = [
@@ -81,6 +83,7 @@ const PatientDashboard = () => {
   const [cancelDialogAppt, setCancelDialogAppt] = useState(null);
   const [cancelling, setCancelling] = useState(false);
   const [receiptAppt, setReceiptAppt] = useState(null);
+  const [rescheduleAppt, setRescheduleAppt] = useState(null);
 
   const fetchDoctors = useCallback(async () => {
     try {
@@ -644,6 +647,19 @@ const PatientDashboard = () => {
 
                       {['pending', 'confirmed'].includes(appt.status) && (
                         <Button
+                          variant="outline"
+                          size="sm"
+                          icon={RefreshCw}
+                          disabled={(appt.rescheduleCount ?? 0) >= 2}
+                          onClick={() => setRescheduleAppt(appt)}
+                          title={(appt.rescheduleCount ?? 0) >= 2 ? 'Max reschedules reached' : 'Reschedule'}
+                        >
+                          Reschedule
+                        </Button>
+                      )}
+
+                      {['pending', 'confirmed'].includes(appt.status) && (
+                        <Button
                           variant="danger"
                           size="sm"
                           onClick={() => setCancelDialogAppt(appt)}
@@ -684,6 +700,14 @@ const PatientDashboard = () => {
         description="Are you sure you want to cancel this appointment? If you have already paid, an automated refund will be initiated."
         confirmLabel="Yes, Cancel Appointment"
         cancelLabel="Keep Appointment"
+      />
+
+      {/* Reschedule Modal */}
+      <RescheduleModal
+        appointment={rescheduleAppt}
+        isOpen={!!rescheduleAppt}
+        onClose={() => setRescheduleAppt(null)}
+        onSuccess={() => { setRescheduleAppt(null); fetchMyAppointments(); }}
       />
 
       {/* Printable Receipt Modal */}
