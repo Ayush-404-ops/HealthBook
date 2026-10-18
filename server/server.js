@@ -4,6 +4,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 
+const path = require('path');
+
 // Route imports
 const authRoutes = require('./routes/authRoutes');
 const doctorRoutes = require('./routes/doctorRoutes');
@@ -11,8 +13,14 @@ const appointmentRoutes = require('./routes/appointmentRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const paymentRoutes = require('./routes/paymentRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const eventRoutes = require('./routes/eventRoutes');
+const reviewRoutes = require('./routes/reviewRoutes');
+const recordRoutes = require('./routes/recordRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const { startScheduler } = require('./scheduler');
 
 const app = express();
+
 
 // ─── Middleware ────────────────────────────────────────────────────────────────
 const allowedOrigins = [
@@ -36,6 +44,7 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
@@ -44,6 +53,11 @@ app.use('/api/appointments', appointmentRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/events', eventRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/records', recordRoutes);
+app.use('/api/notifications', notificationRoutes);
+
 
 // ─── Health Check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (req, res) => {
@@ -74,9 +88,10 @@ if (!process.env.JWT_SECRET) {
 }
 
 mongoose
-  .connect(MONGO_URI)
+  .connect(MONGO_URI, { serverSelectionTimeoutMS: 5000 })
   .then(() => {
     console.log('✅ MongoDB connected');
+    startScheduler();
     app.listen(PORT, () => {
       console.log(`🚀 Server running on http://localhost:${PORT}`);
 
@@ -98,6 +113,9 @@ mongoose
     });
   })
   .catch((err) => {
-    console.error('❌ MongoDB connection error:', err);
+    console.error('❌ MongoDB connection error:', err.message || err);
     process.exit(1);
   });
+
+module.exports = app;
+

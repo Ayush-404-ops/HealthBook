@@ -1,6 +1,9 @@
 const Appointment = require('../models/Appointment');
 const Doctor = require('../models/Doctor');
 const { processRefund } = require('./paymentController');
+const { eventBus, EVENTS } = require('../utils/events');
+const { isSlotHeld, createHold, releaseHold, convertHold } = require('../services/holds');
+
 
 // Status state machine definition
 const ALLOWED_TRANSITIONS = {
@@ -90,6 +93,13 @@ exports.createAppointment = async (req, res) => {
       });
     }
 
+    if (isSlotHeld(doctorId, date, startTime, req.user._id)) {
+      return res.status(409).json({
+        success: false,
+        message: 'Slot is temporarily held by another patient. Please choose another or try again shortly.',
+      });
+    }
+
     const appointment = await Appointment.create({
       patient: req.user._id,
       doctor: doctorId,
@@ -100,12 +110,25 @@ exports.createAppointment = async (req, res) => {
       payment: { status: 'unpaid', amount: doctor.fee },
     });
 
+    if (req.body.holdId) {
+      convertHold(req.body.holdId);
+    }
+
+    eventBus.publish(EVENTS.APPOINTMENT_CREATED, {
+      appointmentId: appointment._id,
+      patientId: req.user._id,
+      doctorId,
+      date,
+      startTime,
+    });
+
     await appointment.populate([
       { path: 'doctor', populate: { path: 'user', select: 'name email' } },
       { path: 'patient', select: 'name email' },
     ]);
 
     res.status(201).json({ success: true, data: appointment });
+
   } catch (err) {
     // Duplicate key → the slot was just taken
     if (err.code === 11000) {
@@ -172,6 +195,14 @@ exports.cancelAppointment = async (req, res) => {
 
     appointment.status = 'cancelled';
     await appointment.save();
+
+    eventBus.publish(EVENTS.APPOINTMENT_CANCELLED, {
+      appointmentId: appointment._id,
+      patientId: req.user._id,
+      doctorId: appointment.doctor,
+      date: appointment.date,
+      startTime: appointment.startTime,
+    });
 
     res.json({ success: true, message: 'Appointment cancelled successfully', data: appointment });
   } catch (err) {
@@ -250,9 +281,145 @@ exports.updateAppointmentStatus = async (req, res) => {
     appointment.status = status;
     await appointment.save();
 
+    eventBus.publish(EVENTS.APPOINTMENT_STATUS, {
+      appointmentId: appointment._id,
+      status,
+      doctorId: doctorProfile._id,
+      patientId: appointment.patient,
+    });
+
     res.json({ success: true, message: `Appointment marked as ${status}`, data: appointment });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
+
+// POST /api/appointments/hold  – hold a slot for booking
+exports.holdSlot = async (req, res) => {
+  try {
+    const { doctorId, date, startTime, ttlMinutes = 5 } = req.body;
+    if (!doctorId || !date || !startTime) {
+      return res.status(400).json({ success: false, message: 'doctorId, date, and startTime are required' });
+    }
+
+    const doctor = await Doctor.findById(doctorId);
+    if (!doctor || !doctor.isApproved) {
+      return res.status(404).json({ success: false, message: 'Doctor not found or not approved' });
+    }
+
+    const existing = await Appointment.findOne({
+      doctor: doctorId,
+      date,
+      startTime,
+      status: { $in: ['pending', 'confirmed'] },
+    });
+    if (existing) {
+      return res.status(409).json({ success: false, message: 'Slot is already booked' });
+    }
+
+    const hold = createHold({
+      doctorId,
+      date,
+      startTime,
+      patientId: req.user._id,
+      ttlMinutes,
+    });
+
+    res.status(200).json({ success: true, data: hold });
+  } catch (err) {
+    if (err.statusCode === 409) {
+      return res.status(409).json({ success: false, message: err.message });
+    }
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// POST /api/appointments/release-hold  – release held slot
+exports.releaseHeldSlot = async (req, res) => {
+  try {
+    const { holdId } = req.body;
+    if (!holdId) {
+      return res.status(400).json({ success: false, message: 'holdId is required' });
+    }
+    const released = releaseHold(holdId);
+    res.status(200).json({ success: true, released });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// PATCH /api/appointments/:id/reschedule  – reschedule an appointment
+exports.rescheduleAppointment = async (req, res) => {
+  try {
+    const { date, startTime } = req.body;
+    if (!date || !startTime) {
+      return res.status(400).json({ success: false, message: 'New date and startTime are required' });
+    }
+
+    const appointment = await Appointment.findById(req.params.id);
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    const isPatient = String(appointment.patient) === String(req.user._id);
+    let isDoctor = false;
+    if (req.user.role === 'doctor') {
+      const doctorProfile = await Doctor.findOne({ user: req.user._id });
+      if (doctorProfile && String(doctorProfile._id) === String(appointment.doctor)) {
+        isDoctor = true;
+      }
+    }
+
+    if (!isPatient && !isDoctor && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to reschedule this appointment' });
+    }
+
+    if (['cancelled', 'completed'].includes(appointment.status)) {
+      return res.status(400).json({ success: false, message: `Cannot reschedule a ${appointment.status} appointment` });
+    }
+
+    const conflict = await Appointment.findOne({
+      _id: { $ne: appointment._id },
+      doctor: appointment.doctor,
+      date,
+      startTime,
+      status: { $in: ['pending', 'confirmed'] },
+    });
+    if (conflict) {
+      return res.status(409).json({ success: false, message: 'The requested slot is already booked' });
+    }
+
+    if (isSlotHeld(appointment.doctor, date, startTime, appointment.patient)) {
+      return res.status(409).json({ success: false, message: 'Slot is currently held by another patient' });
+    }
+
+    const previousDate = appointment.date;
+    const previousTime = appointment.startTime;
+
+    appointment.date = date;
+    appointment.startTime = startTime;
+    await appointment.save();
+
+    eventBus.publish(EVENTS.APPOINTMENT_RESCHEDULED, {
+      appointmentId: appointment._id,
+      doctorId: appointment.doctor,
+      patientId: appointment.patient,
+      previousDate,
+      previousTime,
+      newDate: date,
+      newTime: startTime,
+    });
+
+    res.json({ success: true, message: 'Appointment rescheduled successfully', data: appointment });
+  } catch (err) {
+    if (err.code === 11000) {
+      return res.status(409).json({ success: false, message: 'Slot already booked' });
+    }
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
