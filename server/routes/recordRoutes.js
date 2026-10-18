@@ -21,9 +21,23 @@ const storage = multer.diskStorage({
   },
 });
 
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg']);
+const ALLOWED_MIME_TYPES = new Set(['application/pdf', 'image/png', 'image/jpeg']);
+
+const fileFilter = (req, file, cb) => {
+  const ext = path.extname(file.originalname).toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(ext) || !ALLOWED_MIME_TYPES.has(file.mimetype)) {
+    const error = new Error('Invalid file type. Only PDF, PNG, and JPEG documents are permitted.');
+    error.statusCode = 400;
+    return cb(error, false);
+  }
+  cb(null, true);
+};
+
 const upload = multer({
   storage,
   limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
+  fileFilter,
 });
 
 router.use(protect);

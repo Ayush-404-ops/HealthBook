@@ -88,8 +88,8 @@ class Command(BaseCommand):
                     rating_agg = list(reviews_coll.aggregate(pipeline))
                     if rating_agg and rating_agg[0].get('avg_rating') is not None:
                         avg_rating = round(float(rating_agg[0]['avg_rating']), 2)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    self.stdout.write(self.style.WARNING(f"Could not compute avg_rating for doctor {doc.get('_id')}: {exc}"))
 
                 specialization = doc.get('specialty') or 'General Medicine'
                 fee_val = doc.get('fee') or 0.0

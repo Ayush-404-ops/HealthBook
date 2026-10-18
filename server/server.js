@@ -22,6 +22,8 @@ const { startScheduler } = require('./scheduler');
 const app = express();
 
 
+const { sanitizeMongo } = require('./middleware/mongoSanitize');
+
 // ─── Middleware ────────────────────────────────────────────────────────────────
 const allowedOrigins = [
   process.env.CLIENT_URL,
@@ -37,14 +39,23 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin) || origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1')) {
       callback(null, true);
     } else {
-      callback(null, true);
+      callback(new Error('Blocked by CORS policy'));
     }
   },
   credentials: true,
 }));
 app.use(express.json());
+app.use(sanitizeMongo);
 app.use(cookieParser());
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'");
+    next();
+  },
+  express.static(path.join(__dirname, 'uploads'))
+);
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes);
