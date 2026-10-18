@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+
+{% block title %}Sign In &bull; HealthBook Analytics{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center pt-5">
+    <div class="col-12 col-md-6 col-lg-4">
+        <div class="card shadow-sm border-0">
+            <div class="card-body p-4">
+                <div class="text-center mb-4">
+                    <div class="display-6 text-primary mb-2">
+                        <i class="bi bi-shield-lock"></i>
+                    </div>
+                    <h4 class="fw-bold">Analytics Portal</h4>
+                    <p class="text-muted small">Sign in with your Django admin or staff credentials</p>
+                </div>
+
+                {% if form.errors %}
+                    <div class="alert alert-danger py-2 small" role="alert">
+                        Invalid username or password. Please try again.
+                    </div>
+                {% endif %}
+
+                <form method="post" action="{% url 'login' %}">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="id_username" class="form-label small fw-semibold">Username</label>
+                        <input type="text" name="username" autofocus required class="form-control" id="id_username" placeholder="Username">
+                    </div>
+                    <div class="mb-4">
+                        <label for="id_password" class="form-label small fw-semibold">Password</label>
+                        <input type="password" name="password" required class="form-control" id="id_password" placeholder="Password">
+                    </div>
+                    <input type="hidden" name="next" value="{{ next|default:'/' }}">
+                    <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">
+                        Sign In to Dashboard
+                    </button>
+                </form>
+
+                <div class="text-center mt-4 pt-3 border-top">
+                    <p class="text-muted small mb-0">
+                        Need an account? Run <code>python manage.py createsuperuser</code> in the analytics terminal.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

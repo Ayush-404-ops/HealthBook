@@ -1,0 +1,326 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard &bull; HealthBook Analytics{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="fw-bold mb-1">Healthcare Operations &amp; Appointment Analytics</h2>
+        <p class="text-muted small mb-0">
+            <i class="bi bi-shield-check text-success me-1"></i>
+            Privacy Preserving Reporting Store &bull; Patient IDs are salted SHA-256 hashes &bull; Zero medical notes or PII stored
+        </p>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{% url 'reports:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-clockwise me-1"></i> Refresh Data
+        </a>
+        <a href="/admin/reports/appointmentfact/" target="_blank" class="btn btn-primary btn-sm">
+            <i class="bi bi-table me-1"></i> View in Django Admin
+        </a>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- KPI Cards                                                                 -->
+<!-- ========================================================================= -->
+<div class="row g-3 mb-4">
+    <!-- Total Appointments -->
+    <div class="col-12 col-sm-6 col-xl-2">
+        <div class="card h-100 p-3 kpi-card" style="border-left-color: #0284c7;">
+            <div class="kpi-label">Total Bookings</div>
+            <div class="kpi-value text-dark mt-1">{{ kpis.total }}</div>
+            <small class="text-muted"><i class="bi bi-calendar-event me-1"></i>All-time volume</small>
+        </div>
+    </div>
+
+    <!-- Completed -->
+    <div class="col-12 col-sm-6 col-xl-2">
+        <div class="card h-100 p-3 kpi-card" style="border-left-color: #198754;">
+            <div class="kpi-label text-success">Completed</div>
+            <div class="kpi-value text-success mt-1">{{ kpis.completed }}</div>
+            <small class="text-muted"><i class="bi bi-check-circle me-1"></i>Fulfilled consults</small>
+        </div>
+    </div>
+
+    <!-- Cancelled -->
+    <div class="col-12 col-sm-6 col-xl-2">
+        <div class="card h-100 p-3 kpi-card" style="border-left-color: #dc3545;">
+            <div class="kpi-label text-danger">Cancelled</div>
+            <div class="kpi-value text-danger mt-1">{{ kpis.cancelled }}</div>
+            <small class="text-muted"><i class="bi bi-x-circle me-1"></i>{{ kpis.cancellation_rate }}% cancel rate</small>
+        </div>
+    </div>
+
+    <!-- No-Show Rate -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card h-100 p-3 kpi-card" style="border-left-color: #fd7e14;">
+            <div class="kpi-label text-warning">No-Show Rate</div>
+            <div class="kpi-value text-dark mt-1">{{ kpis.noshow_rate }}%</div>
+            <small class="text-muted"><i class="bi bi-person-x me-1"></i>{{ kpis.noshow }} unexcused absences</small>
+        </div>
+    </div>
+
+    <!-- Revenue -->
+    <div class="col-12 col-sm-6 col-xl-3">
+        <div class="card h-100 p-3 kpi-card" style="border-left-color: #6366f1;">
+            <div class="kpi-label" style="color: #6366f1;">Total Revenue</div>
+            <div class="kpi-value text-dark mt-1">&#8377;{{ kpis.revenue|floatformat:2 }}</div>
+            <small class="text-muted"><i class="bi bi-cash-stack me-1"></i>Completed appointments</small>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- Matplotlib Analytics Visualizations                                       -->
+<!-- ========================================================================= -->
+<div class="row g-4 mb-4">
+    <!-- Chart: Weekday Distribution -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-bar-chart-fill text-primary me-2"></i>Weekday Load
+                </h6>
+                <span class="badge bg-light text-secondary border">Matplotlib</span>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-2">
+                <img src="{% url 'reports:chart_weekday' %}" alt="Appointments per Weekday" class="chart-img img-fluid">
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart: Hourly Distribution -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-clock-history text-info me-2"></i>Peak Booking Hours
+                </h6>
+                <span class="badge bg-light text-secondary border">Seaborn</span>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-2">
+                <img src="{% url 'reports:chart_hourly' %}" alt="Appointments per Hour" class="chart-img img-fluid">
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart: Status Breakdown -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-pie-chart-fill text-success me-2"></i>Status Breakdown
+                </h6>
+                <span class="badge bg-light text-secondary border">Matplotlib</span>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-2">
+                <img src="{% url 'reports:chart_status' %}" alt="Status Breakdown" class="chart-img img-fluid">
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ========================================================================= -->
+<!-- Top Doctors by Rating & Filterable Appointments Table                      -->
+<!-- ========================================================================= -->
+<div class="row g-4">
+    <!-- Top Doctors -->
+    <div class="col-12 col-xl-4">
+        <div class="card h-100">
+            <div class="card-header bg-white py-3 border-bottom d-flex justify-content-between align-items-center">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-trophy-fill text-warning me-2"></i>Top Rated Doctors
+                </h6>
+                <small class="text-muted">By avg rating</small>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light small">
+                            <tr>
+                                <th>Doctor</th>
+                                <th>Specialty</th>
+                                <th class="text-center">Rating</th>
+                                <th class="text-end">Fee</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small">
+                            {% for doc in top_doctors %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ doc.name }}</div>
+                                    {% if doc.is_demo %}
+                                        <span class="badge bg-light text-muted border" style="font-size: 0.65rem;">demo</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted">{{ doc.specialization }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning text-dark fw-bold">
+                                        <i class="bi bi-star-fill me-1"></i>{{ doc.avg_rating }}
+                                    </span>
+                                </td>
+                                <td class="text-end fw-semibold">&#8377;{{ doc.fee|floatformat:0 }}</td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted">No doctors synced yet.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filterable Appointments Table -->
+    <div class="col-12 col-xl-8">
+        <div class="card h-100">
+            <div class="card-header bg-white py-3 border-bottom d-flex flex-wrap justify-content-between align-items-center gap-2">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-journal-medical text-primary me-2"></i>Appointment Facts
+                </h6>
+                <!-- Interactive Filter with jQuery AJAX -->
+                <div class="d-flex align-items-center gap-2">
+                    <label for="statusFilter" class="small fw-semibold text-muted text-nowrap">Filter Status:</label>
+                    <select id="statusFilter" class="form-select form-select-sm" style="width: auto;">
+                        <option value="all">All Statuses</option>
+                        <option value="completed">Completed</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="pending">Pending</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="no-show">No-Show</option>
+                    </select>
+                    <span id="filterSpinner" class="spinner-border spinner-border-sm text-primary d-none" role="status"></span>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 480px;">
+                    <table class="table table-hover align-middle mb-0" id="appointmentsTable">
+                        <thead class="table-light small sticky-top">
+                            <tr>
+                                <th>Doctor</th>
+                                <th>Date &amp; Time</th>
+                                <th>Status</th>
+                                <th>Fee</th>
+                                <th>Resched</th>
+                                <th>Patient Hash</th>
+                            </tr>
+                        </thead>
+                        <tbody class="small" id="appointmentsTableBody">
+                            {% for appt in recent_appointments %}
+                            <tr>
+                                <td>
+                                    <div class="fw-semibold">{{ appt.doctor.name }}</div>
+                                    <small class="text-muted">{{ appt.doctor.specialization }}</small>
+                                </td>
+                                <td>
+                                    <div>{{ appt.date|date:"Y-m-d" }}</div>
+                                    <small class="text-muted">{{ appt.start_time|time:"H:i" }}</small>
+                                </td>
+                                <td>
+                                    {% if appt.status == 'completed' %}
+                                        <span class="badge bg-success badge-status">Completed</span>
+                                    {% elif appt.status == 'confirmed' %}
+                                        <span class="badge bg-primary badge-status">Confirmed</span>
+                                    {% elif appt.status == 'cancelled' %}
+                                        <span class="badge bg-danger badge-status">Cancelled</span>
+                                    {% elif appt.status == 'no-show' %}
+                                        <span class="badge bg-secondary badge-status">No-Show</span>
+                                    {% else %}
+                                        <span class="badge bg-warning text-dark badge-status">{{ appt.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>&#8377;{{ appt.fee|floatformat:0 }}</td>
+                                <td>
+                                    {% if appt.rescheduled_count > 0 %}
+                                        <span class="badge bg-light text-dark border">{{ appt.rescheduled_count }}x</span>
+                                    {% else %}
+                                        <span class="text-muted">0</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <code class="text-muted" style="font-size: 0.75rem;">{{ appt.patient_hash|slice:":10" }}...</code>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No appointments found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer bg-white border-top py-2 d-flex justify-content-between align-items-center">
+                <small class="text-muted" id="tableCountText">Showing latest records</small>
+                <small class="text-muted fst-italic">Anonymized dataset &bull; No patient PII stored</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<!-- jQuery AJAX Table Filter Snippet -->
+<script>
+$(document).ready(function() {
+    $('#statusFilter').on('change', function() {
+        var selectedStatus = $(this).val();
+        var $spinner = $('#filterSpinner');
+        var $tbody = $('#appointmentsTableBody');
+        var $countText = $('#tableCountText');
+
+        $spinner.removeClass('d-none');
+
+        $.ajax({
+            url: "{% url 'reports:api_appointments' %}",
+            type: "GET",
+            data: { status: selectedStatus },
+            dataType: "json",
+            success: function(response) {
+                $spinner.addClass('d-none');
+                $tbody.empty();
+
+                if (!response.appointments || response.appointments.length === 0) {
+                    $tbody.append('<tr><td colspan="6" class="text-center py-4 text-muted">No matching appointments found.</td></tr>');
+                    $countText.text('Found 0 records');
+                    return;
+                }
+
+                $countText.text('Showing ' + response.appointments.length + ' records');
+
+                $.each(response.appointments, function(index, appt) {
+                    var badgeClass = 'bg-secondary';
+                    if (appt.status === 'completed') badgeClass = 'bg-success';
+                    else if (appt.status === 'confirmed') badgeClass = 'bg-primary';
+                    else if (appt.status === 'cancelled') badgeClass = 'bg-danger';
+                    else if (appt.status === 'pending') badgeClass = 'bg-warning text-dark';
+
+                    var reschedBadge = appt.rescheduled_count > 0 
+                        ? '<span class="badge bg-light text-dark border">' + appt.rescheduled_count + 'x</span>' 
+                        : '<span class="text-muted">0</span>';
+
+                    var row = '<tr>' +
+                        '<td><div class="fw-semibold">' + $('<div>').text(appt.doctor_name).html() + '</div>' +
+                        '<small class="text-muted">' + $('<div>').text(appt.specialization).html() + '</small></td>' +
+                        '<td><div>' + appt.date + '</div><small class="text-muted">' + appt.start_time + '</small></td>' +
+                        '<td><span class="badge ' + badgeClass + ' badge-status">' + appt.status + '</span></td>' +
+                        '<td>&#8377;' + appt.fee + '</td>' +
+                        '<td>' + reschedBadge + '</td>' +
+                        '<td><code class="text-muted" style="font-size: 0.75rem;">' + appt.patient_hash + '</code></td>' +
+                        '</tr>';
+                    $tbody.append(row);
+                });
+            },
+            error: function(xhr, status, error) {
+                $spinner.addClass('d-none');
+                console.error("Failed to fetch appointments:", error);
+                alert("Failed to filter appointments. Please try again.");
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
