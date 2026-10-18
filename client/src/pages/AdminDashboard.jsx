@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
+import { Card, CardHeader, CardTitle, CardDescription } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -12,7 +11,6 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '../components/ui/Table';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
-import { Tabs, TabContent } from '../components/ui/Tabs';
 import toast from 'react-hot-toast';
 import {
   ShieldCheck,
@@ -25,7 +23,6 @@ import {
   ChevronDown,
   ChevronUp,
   UserCheck,
-  TrendingUp,
 } from 'lucide-react';
 import {
   ResponsiveContainer,
@@ -40,7 +37,6 @@ import {
 } from 'recharts';
 
 const AdminDashboard = () => {
-  const { user } = useAuth();
   const [stats, setStats] = useState({
     totalPatients: 0,
     totalDoctors: 0,

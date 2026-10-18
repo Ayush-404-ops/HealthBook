@@ -5,12 +5,12 @@ const { eventBus, EVENTS } = require('../utils/events');
 const { isSlotHeld, createHold, releaseHold, convertHold } = require('../services/holds');
 
 
-// Status state machine definition
 const ALLOWED_TRANSITIONS = {
   pending: ['confirmed', 'cancelled'],
-  confirmed: ['completed', 'cancelled'],
+  confirmed: ['completed', 'cancelled', 'no-show'],
   completed: [],
   cancelled: [],
+  'no-show': [],
 };
 
 // POST /api/appointments  – patient books an appointment
@@ -215,7 +215,7 @@ exports.cancelAppointment = async (req, res) => {
 exports.updateAppointmentStatus = async (req, res) => {
   try {
     const { status } = req.body;
-    if (!status || !['pending', 'confirmed', 'completed', 'cancelled'].includes(status)) {
+    if (!status || !['pending', 'confirmed', 'completed', 'cancelled', 'no-show'].includes(status)) {
       return res.status(400).json({ success: false, message: 'Invalid status' });
     }
 
@@ -241,7 +241,7 @@ exports.updateAppointmentStatus = async (req, res) => {
     }
 
     // Check if already in a terminal state
-    if (['completed', 'cancelled'].includes(currentStatus)) {
+    if (['completed', 'cancelled', 'no-show'].includes(currentStatus)) {
       return res.status(400).json({
         success: false,
         message: `Cannot change status of a ${currentStatus} appointment. It is in a final state.`,

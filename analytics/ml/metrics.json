@@ -32,40 +32,40 @@
     },
     "RandomForestClassifier": {
       "test_metrics": {
-        "accuracy": 0.6931,
-        "precision": 0.2963,
-        "recall": 0.4,
-        "f1": 0.3404,
-        "roc_auc": 0.5469,
+        "accuracy": 0.7228,
+        "precision": 0.2143,
+        "recall": 0.15,
+        "f1": 0.1765,
+        "roc_auc": 0.5006,
         "confusion_matrix": [
           [
-            62,
-            19
+            70,
+            11
           ],
           [
-            12,
-            8
+            17,
+            3
           ]
         ]
       },
       "cv_summary": {
-        "cv_accuracy_mean": 0.626,
-        "cv_precision_mean": 0.1909,
-        "cv_recall_mean": 0.3167,
-        "cv_f1_mean": 0.2358,
-        "cv_roc_auc_mean": 0.5527
+        "cv_accuracy_mean": 0.7129,
+        "cv_precision_mean": 0.1645,
+        "cv_recall_mean": 0.1258,
+        "cv_f1_mean": 0.1412,
+        "cv_roc_auc_mean": 0.5559
       },
       "top_feature_importances": {
-        "lead_time_days": 0.1733,
-        "hour": 0.1517,
-        "fee": 0.083,
-        "patient_prev_cancellations": 0.0724,
-        "weekday_Monday": 0.065,
-        "rescheduled_count": 0.0624,
-        "specialization_Orthopedics": 0.0607,
-        "weekday_Saturday": 0.0452,
-        "specialization_Cardiology": 0.0441,
-        "specialization_Psychiatry": 0.0278
+        "lead_time_days": 0.1715,
+        "hour": 0.1411,
+        "weekday_Monday": 0.0808,
+        "fee": 0.0798,
+        "rescheduled_count": 0.0666,
+        "patient_prev_cancellations": 0.0628,
+        "specialization_Orthopedics": 0.0562,
+        "weekday_Saturday": 0.0443,
+        "specialization_Cardiology": 0.0422,
+        "weekday_Thursday": 0.033
       }
     }
   },

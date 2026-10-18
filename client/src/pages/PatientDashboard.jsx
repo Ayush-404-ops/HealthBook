@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import api from '../api/axios';
 import { DashboardLayout } from '../components/layout/DashboardLayout';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '../components/ui/Card';
+import { Card } from '../components/ui/Card';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Select } from '../components/ui/Select';
@@ -24,20 +24,14 @@ import {
   Clock,
   IndianRupee,
   Award,
-  ChevronRight,
   CreditCard,
   XCircle,
   CheckCircle,
-  Filter,
   Grid,
   List,
   Printer,
-  Sparkles,
   Stethoscope,
   ArrowRight,
-  ShieldCheck,
-  Flame,
-  Trophy,
   RefreshCw,
   Star,
   FileText,
