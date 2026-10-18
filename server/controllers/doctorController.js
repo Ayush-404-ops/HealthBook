@@ -1,5 +1,8 @@
 const Doctor = require('../models/Doctor');
 const Appointment = require('../models/Appointment');
+const Review = require('../models/Review');
+const { isSlotHeld } = require('../services/holds');
+
 
 /**
  * Helper: generate time slots for a given startTime, endTime and duration in minutes.
@@ -48,12 +51,39 @@ exports.getDoctors = async (req, res) => {
       );
     }
 
-    res.json({ success: true, count: doctors.length, data: doctors });
+    // Attach review stats
+    const reviewStats = await Review.aggregate([
+      {
+        $group: {
+          _id: '$doctor',
+          averageRating: { $avg: '$rating' },
+          reviewCount: { $sum: 1 },
+        },
+      },
+    ]);
+    const statsMap = new Map();
+    reviewStats.forEach((s) => {
+      statsMap.set(String(s._id), {
+        averageRating: Number(s.averageRating.toFixed(1)),
+        reviewCount: s.reviewCount,
+      });
+    });
+
+    const doctorsWithReviews = doctors.map((doc) => {
+      const docObj = doc.toObject();
+      const st = statsMap.get(String(doc._id)) || { averageRating: 0, reviewCount: 0 };
+      docObj.averageRating = st.averageRating;
+      docObj.reviewCount = st.reviewCount;
+      return docObj;
+    });
+
+    res.json({ success: true, count: doctorsWithReviews.length, data: doctorsWithReviews });
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: 'Internal server error. Please try again later.' });
   }
 };
+
 
 // GET /api/doctors/:id  – single doctor profile
 exports.getDoctorById = async (req, res) => {
@@ -108,7 +138,7 @@ exports.getAvailableSlots = async (req, res) => {
 
     const bookedTimes = new Set(booked.map((a) => a.startTime));
 
-    const available = candidates.filter((t) => !bookedTimes.has(t));
+    const available = candidates.filter((t) => !bookedTimes.has(t) && !isSlotHeld(doctor._id, date, t));
 
     res.json({ success: true, data: available, weekday });
   } catch (err) {

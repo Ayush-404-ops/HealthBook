@@ -381,6 +381,26 @@ exports.rescheduleAppointment = async (req, res) => {
       return res.status(400).json({ success: false, message: `Cannot reschedule a ${appointment.status} appointment` });
     }
 
+    if ((appointment.rescheduleCount || 0) >= 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Maximum reschedule limit reached (maximum 2 reschedules per appointment).',
+      });
+    }
+
+    // 2-hour cutoff check
+    const [curY, curM, curD] = appointment.date.split('-').map(Number);
+    const [curH, curMin] = appointment.startTime.split(':').map(Number);
+    const apptDateTime = new Date(curY, curM - 1, curD, curH, curMin);
+    const now = new Date();
+    const diffHours = (apptDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+    if (diffHours < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot reschedule within 2 hours of the appointment time.',
+      });
+    }
+
     const conflict = await Appointment.findOne({
       _id: { $ne: appointment._id },
       doctor: appointment.doctor,
@@ -401,6 +421,7 @@ exports.rescheduleAppointment = async (req, res) => {
 
     appointment.date = date;
     appointment.startTime = startTime;
+    appointment.rescheduleCount = (appointment.rescheduleCount || 0) + 1;
     await appointment.save();
 
     eventBus.publish(EVENTS.APPOINTMENT_RESCHEDULED, {
@@ -422,4 +443,89 @@ exports.rescheduleAppointment = async (req, res) => {
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 };
+
+// PATCH /api/appointments/:id/consultation  – doctor saves notes and prescription
+exports.saveConsultation = async (req, res) => {
+  try {
+    const { consultationNotes, prescription } = req.body;
+    const doctorProfile = await Doctor.findOne({ user: req.user._id });
+    if (!doctorProfile) {
+      return res.status(404).json({ success: false, message: 'Doctor profile not found' });
+    }
+
+    const appointment = await Appointment.findOne({
+      _id: req.params.id,
+      doctor: doctorProfile._id,
+    });
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    appointment.consultationNotes = consultationNotes || '';
+    appointment.prescription = prescription || '';
+    await appointment.save();
+
+    res.json({ success: true, message: 'Consultation saved successfully', data: appointment });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
+// GET /api/appointments/:id/prescription  – printable or downloadable prescription
+exports.getPrescription = async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id)
+      .populate({ path: 'doctor', populate: { path: 'user', select: 'name email' } })
+      .populate('patient', 'name email phone');
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found' });
+    }
+
+    const isPatient = String(appointment.patient._id || appointment.patient) === String(req.user._id);
+    let isDoctor = false;
+    if (req.user.role === 'doctor') {
+      const doctorProfile = await Doctor.findOne({ user: req.user._id });
+      if (doctorProfile && String(doctorProfile._id) === String(appointment.doctor._id || appointment.doctor)) {
+        isDoctor = true;
+      }
+    }
+
+    if (!isPatient && !isDoctor && req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Not authorized to view this prescription' });
+    }
+
+    if (req.query.download === 'true') {
+      res.setHeader('Content-Type', 'text/plain');
+      res.setHeader('Content-Disposition', `attachment; filename="prescription-${appointment._id}.txt"`);
+      const content = `HEALTHBOOK MEDICAL PRESCRIPTION\n` +
+        `----------------------------------------\n` +
+        `Appointment ID: ${appointment._id}\n` +
+        `Date: ${appointment.date} at ${appointment.startTime}\n` +
+        `Doctor: Dr. ${appointment.doctor?.user?.name || 'Practitioner'}\n` +
+        `Patient: ${appointment.patient?.name || 'Patient'}\n\n` +
+        `CONSULTATION NOTES:\n${appointment.consultationNotes || 'None'}\n\n` +
+        `RX / PRESCRIPTION:\n${appointment.prescription || 'No medicines prescribed.'}\n` +
+        `----------------------------------------\n`;
+      return res.send(content);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        appointmentId: appointment._id,
+        doctorName: appointment.doctor?.user?.name,
+        patientName: appointment.patient?.name,
+        date: appointment.date,
+        startTime: appointment.startTime,
+        consultationNotes: appointment.consultationNotes,
+        prescription: appointment.prescription,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+};
+
 

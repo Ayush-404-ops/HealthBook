@@ -37,6 +37,9 @@ const appointmentSchema = new mongoose.Schema(
       amount: { type: Number, default: 0 },
     },
     notes: { type: String, default: '' },
+    consultationNotes: { type: String, default: '' },
+    prescription: { type: String, default: '' },
+    rescheduleCount: { type: Number, default: 0 },
   },
   { timestamps: true }
 );

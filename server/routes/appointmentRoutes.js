@@ -9,6 +9,8 @@ const {
   holdSlot,
   releaseHeldSlot,
   rescheduleAppointment,
+  saveConsultation,
+  getPrescription,
 } = require('../controllers/appointmentController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -22,6 +24,9 @@ router.get('/doctor', authorize('doctor'), getDoctorAppointments);
 router.patch('/:id/cancel', authorize('patient'), cancelAppointment);
 router.patch('/:id/status', authorize('doctor'), updateAppointmentStatus);
 router.patch('/:id/reschedule', rescheduleAppointment);
+router.patch('/:id/consultation', authorize('doctor'), saveConsultation);
+router.get('/:id/prescription', getPrescription);
 
 module.exports = router;
+
 
